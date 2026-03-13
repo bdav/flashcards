@@ -67,13 +67,23 @@ export default function StudyPage() {
 
   if (studyState.phase === 'idle') {
     return (
-      <CenteredPage centered>
-        <h1 className="text-2xl font-bold">{deck.name}</h1>
-        <p className="mt-2 text-muted-foreground">{cards.length} cards</p>
-        {error && <p className="mt-2 text-destructive">{error}</p>}
-        <Button className="mt-4" onClick={handleStart}>
-          Start studying
-        </Button>
+      <CenteredPage>
+        <h1 className="mb-4 text-3xl font-bold text-soft-foreground">
+          {deck.name}
+        </h1>
+        <div className="flex w-full flex-1 flex-col items-center justify-center">
+          {error && <p className="mb-2 text-destructive">{error}</p>}
+          <CardStack
+            queueLength={cards.length}
+            className="animate-pulse-halo-border cursor-pointer"
+            onClick={handleStart}
+          >
+            <p className="text-3xl font-bold text-soft-foreground">
+              {cards.length} cards
+            </p>
+            <p className="mt-4 text-lg text-soft-foreground">Start studying</p>
+          </CardStack>
+        </div>
       </CenteredPage>
     );
   }

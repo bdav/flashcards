@@ -114,16 +114,25 @@ export function useStudySession(
         phase: 'reviewing',
         reviewIndex: history.length - 1,
       });
+    } else if (studyState.phase === 'answering' && history.length === 0) {
+      setStudyState({ phase: 'idle' });
     } else if (studyState.phase === 'result' && history.length > 1) {
       setStudyState({
         phase: 'reviewing',
         reviewIndex: history.length - 2,
       });
+    } else if (studyState.phase === 'result' && history.length === 1) {
+      setStudyState({ phase: 'idle' });
     } else if (studyState.phase === 'reviewing' && studyState.reviewIndex > 0) {
       setStudyState({
         phase: 'reviewing',
         reviewIndex: studyState.reviewIndex - 1,
       });
+    } else if (
+      studyState.phase === 'reviewing' &&
+      studyState.reviewIndex === 0
+    ) {
+      setStudyState({ phase: 'idle' });
     }
   }, [studyState, history.length]);
 
@@ -158,9 +167,9 @@ export function useStudySession(
   }, [studyState, history, cardQueue.currentCard]);
 
   const canGoBack =
-    (studyState.phase === 'answering' && history.length > 0) ||
-    (studyState.phase === 'result' && history.length > 1) ||
-    (studyState.phase === 'reviewing' && studyState.reviewIndex > 0);
+    studyState.phase === 'answering' ||
+    studyState.phase === 'result' ||
+    studyState.phase === 'reviewing';
 
   const reviewEntry =
     studyState.phase === 'reviewing'

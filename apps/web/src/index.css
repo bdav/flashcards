@@ -4,6 +4,11 @@
   --color-soft-foreground: oklch(0.45 0 0);
   --color-soft-muted-foreground: oklch(0.75 0.12 250);
   --animate-pulse-halo: pulse-halo 2s ease-in-out infinite;
+  --animate-pulse-halo-border: pulse-halo-border 2s ease-in-out infinite;
+}
+
+button {
+  cursor: pointer;
 }
 
 @keyframes pulse-halo {
@@ -19,5 +24,20 @@
       drop-shadow(0 0 10px oklch(0.67 0.22 250))
       drop-shadow(0 0 18px oklch(0.62 0.18 250 / 0.8));
     color: white;
+  }
+}
+
+@keyframes pulse-halo-border {
+  0%,
+  100% {
+    box-shadow: 0 0 1px oklch(0.7 0.25 250 / 0.3);
+    border-color: oklch(0.75 0.12 250);
+  }
+  50% {
+    box-shadow:
+      0 0 4px oklch(0.72 0.25 250),
+      0 0 10px oklch(0.67 0.22 250),
+      0 0 18px oklch(0.62 0.18 250 / 0.8);
+    border-color: white;
   }
 }
