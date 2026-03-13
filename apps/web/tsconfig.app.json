@@ -12,7 +12,8 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "api/app": ["../api/src/app"]
     },
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,

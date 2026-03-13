@@ -1,3 +1,7 @@
 export default function DashboardPage() {
-  return <h1>Dashboard</h1>
+  return (
+    <main className="p-6">
+      <h1 className="text-2xl font-bold">Flashcards</h1>
+    </main>
+  )
 }

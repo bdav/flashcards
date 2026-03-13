@@ -1,7 +1,11 @@
+import { RouterProvider } from "react-router-dom"
+import { AppProviders } from "./providers"
+import { router } from "./router"
+
 export default function App() {
   return (
-    <main className="p-6">
-      <h1 className="text-2xl font-bold">Flashcards</h1>
-    </main>
+    <AppProviders>
+      <RouterProvider router={router} />
+    </AppProviders>
   )
 }
