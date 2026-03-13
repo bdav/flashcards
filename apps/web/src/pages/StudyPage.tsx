@@ -180,32 +180,40 @@ export default function StudyPage() {
 
       {error && <p className="mb-4 text-destructive">{error}</p>}
 
-      <div className="flex aspect-3/2 w-full max-w-md flex-col items-center justify-center rounded-xl border-2 bg-white p-8 shadow-md">
-        {studyState.phase === 'answering' && (
-          <p className="text-center text-3xl font-bold uppercase tracking-wide">
-            {currentCard.front}
-          </p>
+      <div className="relative w-full max-w-md pt-3">
+        {studyQueue.length > 2 && (
+          <div className="absolute inset-x-2 top-0 h-4 rounded-t-xl border-2 border-b-0 bg-white shadow-sm" />
         )}
-        {studyState.phase === 'result' && (
-          <div className="text-center" data-testid="correct-answer">
-            <p
-              className={`mb-4 text-lg font-semibold ${
-                studyState.result === 'correct'
-                  ? 'text-green-600'
-                  : 'text-red-600'
-              }`}
-              data-testid="result"
-            >
-              {studyState.result === 'correct' ? 'Correct!' : 'Incorrect'}
-            </p>
-            <p className="text-sm uppercase tracking-wide text-muted-foreground">
+        {studyQueue.length > 1 && (
+          <div className="absolute inset-x-1 top-1.5 h-4 rounded-t-xl border-2 border-b-0 bg-white shadow-sm" />
+        )}
+        <div className="relative flex aspect-3/2 w-full flex-col items-center justify-center rounded-xl border-2 bg-white p-8 shadow-md">
+          {studyState.phase === 'answering' && (
+            <p className="text-center text-3xl font-bold uppercase tracking-wide">
               {currentCard.front}
             </p>
-            <p className="mt-2 text-3xl font-bold uppercase tracking-wide">
-              {currentCard.back}
-            </p>
-          </div>
-        )}
+          )}
+          {studyState.phase === 'result' && (
+            <div className="text-center" data-testid="correct-answer">
+              <p className="text-sm uppercase tracking-wide text-muted-foreground">
+                {currentCard.front}
+              </p>
+              <p className="mt-2 text-3xl font-bold uppercase tracking-wide">
+                {currentCard.back}
+              </p>
+              <p
+                className={`mt-4 text-lg font-semibold ${
+                  studyState.result === 'correct'
+                    ? 'text-green-600'
+                    : 'text-red-600'
+                }`}
+                data-testid="result"
+              >
+                {studyState.result === 'correct' ? 'Correct!' : 'Incorrect'}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="relative mt-6 w-full max-w-md">
