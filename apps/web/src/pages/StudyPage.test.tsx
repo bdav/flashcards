@@ -65,38 +65,38 @@ function renderStudyPage(deckId = 'deck-1') {
   );
 }
 
-// Helpers to set up mock return values
-let startSessionCallback: ((args: { deckId: string }) => void) | undefined;
-let submitAttemptCallback:
-  | ((args: { studySessionId: string; cardId: string; result: string }) => void)
-  | undefined;
-let finishSessionCallback: ((args: { id: string }) => void) | undefined;
-
-function setupMocks() {
-  startSessionCallback = undefined;
-  submitAttemptCallback = undefined;
-  finishSessionCallback = undefined;
-
+function setupMocksWithStartSession() {
   vi.mocked(trpc.deck.getById.useQuery).mockReturnValue({
     data: mockDeck,
     isLoading: false,
     isError: false,
   } as ReturnType<typeof trpc.deck.getById.useQuery>);
 
-  vi.mocked(trpc.study.startSession.useMutation).mockReturnValue({
-    mutate: vi.fn((args: { deckId: string }) => {
-      startSessionCallback?.(args);
-    }),
-    mutateAsync: vi.fn(),
-  } as unknown as ReturnType<typeof trpc.study.startSession.useMutation>);
+  vi.mocked(trpc.study.startSession.useMutation).mockImplementation(
+    (opts?: { onSuccess?: (data: { id: string }) => void }) => {
+      return {
+        mutate: vi.fn(() => {
+          opts?.onSuccess?.({ id: 'session-1' });
+        }),
+        mutateAsync: vi.fn(),
+      } as unknown as ReturnType<typeof trpc.study.startSession.useMutation>;
+    },
+  );
 
   vi.mocked(trpc.study.submitAttempt.useMutation).mockReturnValue({
     mutate: vi.fn(),
     mutateAsync: vi.fn((args) => {
-      submitAttemptCallback?.(args);
+      // Simulate server grading: exact match on card back
+      const card = mockDeck.cards.find((c) => c.id === args.cardId);
+      const isCorrect =
+        card &&
+        args.userAnswer.trim().toLowerCase() === card.back.toLowerCase();
       return Promise.resolve({
         id: 'attempt-1',
-        ...args,
+        studySessionId: args.studySessionId,
+        cardId: args.cardId,
+        userAnswer: args.userAnswer,
+        result: isCorrect ? 'correct' : 'incorrect',
         createdAt: new Date(),
       });
     }),
@@ -105,7 +105,6 @@ function setupMocks() {
   vi.mocked(trpc.study.finishSession.useMutation).mockReturnValue({
     mutate: vi.fn(),
     mutateAsync: vi.fn((args) => {
-      finishSessionCallback?.(args);
       return Promise.resolve({
         id: args.id,
         endedAt: new Date(),
@@ -117,13 +116,36 @@ function setupMocks() {
   } as unknown as ReturnType<typeof trpc.study.finishSession.useMutation>);
 }
 
+function setupBasicMocks() {
+  vi.mocked(trpc.deck.getById.useQuery).mockReturnValue({
+    data: mockDeck,
+    isLoading: false,
+    isError: false,
+  } as ReturnType<typeof trpc.deck.getById.useQuery>);
+
+  vi.mocked(trpc.study.startSession.useMutation).mockReturnValue({
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+  } as unknown as ReturnType<typeof trpc.study.startSession.useMutation>);
+
+  vi.mocked(trpc.study.submitAttempt.useMutation).mockReturnValue({
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+  } as unknown as ReturnType<typeof trpc.study.submitAttempt.useMutation>);
+
+  vi.mocked(trpc.study.finishSession.useMutation).mockReturnValue({
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+  } as unknown as ReturnType<typeof trpc.study.finishSession.useMutation>);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
-  setupMocks();
 });
 
 describe('StudyPage', () => {
   it('shows deck name and start button before studying', () => {
+    setupBasicMocks();
     renderStudyPage();
     expect(
       screen.getByRole('heading', { name: /test deck/i }),
@@ -133,70 +155,71 @@ describe('StudyPage', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows card front and hides answer initially after starting', async () => {
-    // Make startSession invoke the onSuccess callback
-    vi.mocked(trpc.study.startSession.useMutation).mockImplementation(
-      (opts?: { onSuccess?: (data: { id: string }) => void }) => {
-        return {
-          mutate: vi.fn(() => {
-            opts?.onSuccess?.({ id: 'session-1' });
-          }),
-          mutateAsync: vi.fn(),
-        } as unknown as ReturnType<typeof trpc.study.startSession.useMutation>;
-      },
-    );
-
+  it('shows card front and answer input after starting', async () => {
+    setupMocksWithStartSession();
     const user = userEvent.setup();
     renderStudyPage();
 
     await user.click(screen.getByRole('button', { name: /start studying/i }));
 
     expect(screen.getByText('What is 2+2?')).toBeInTheDocument();
-    expect(screen.queryByTestId('answer')).not.toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /reveal answer/i }),
+      screen.getByPlaceholderText(/type your answer/i),
     ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /submit/i })).toBeInTheDocument();
+    // Correct answer should not be visible yet
+    expect(screen.queryByTestId('correct-answer')).not.toBeInTheDocument();
   });
 
-  it('shows the answer after clicking reveal', async () => {
-    vi.mocked(trpc.study.startSession.useMutation).mockImplementation(
-      (opts?: { onSuccess?: (data: { id: string }) => void }) => {
-        return {
-          mutate: vi.fn(() => {
-            opts?.onSuccess?.({ id: 'session-1' });
-          }),
-          mutateAsync: vi.fn(),
-        } as unknown as ReturnType<typeof trpc.study.startSession.useMutation>;
-      },
-    );
-
+  it('shows correct result after submitting right answer', async () => {
+    setupMocksWithStartSession();
     const user = userEvent.setup();
     renderStudyPage();
 
     await user.click(screen.getByRole('button', { name: /start studying/i }));
-    await user.click(screen.getByRole('button', { name: /reveal answer/i }));
+    await user.type(screen.getByPlaceholderText(/type your answer/i), '4');
+    await user.click(screen.getByRole('button', { name: /submit/i }));
 
-    expect(screen.getByTestId('answer')).toHaveTextContent('4');
-    expect(
-      screen.getByRole('button', { name: /^correct$/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /^incorrect$/i }),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('result')).toHaveTextContent('Correct!');
+    });
+    expect(screen.getByTestId('correct-answer')).toHaveTextContent('Answer: 4');
+    expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument();
+  });
+
+  it('shows incorrect result after submitting wrong answer', async () => {
+    setupMocksWithStartSession();
+    const user = userEvent.setup();
+    renderStudyPage();
+
+    await user.click(screen.getByRole('button', { name: /start studying/i }));
+    await user.type(screen.getByPlaceholderText(/type your answer/i), '5');
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('result')).toHaveTextContent('Incorrect');
+    });
+    expect(screen.getByTestId('correct-answer')).toHaveTextContent('Answer: 4');
+  });
+
+  it('submits answer on Enter key press', async () => {
+    setupMocksWithStartSession();
+    const user = userEvent.setup();
+    renderStudyPage();
+
+    await user.click(screen.getByRole('button', { name: /start studying/i }));
+    await user.type(
+      screen.getByPlaceholderText(/type your answer/i),
+      '4{Enter}',
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('result')).toHaveTextContent('Correct!');
+    });
   });
 
   it('shows progress indicator during study', async () => {
-    vi.mocked(trpc.study.startSession.useMutation).mockImplementation(
-      (opts?: { onSuccess?: (data: { id: string }) => void }) => {
-        return {
-          mutate: vi.fn(() => {
-            opts?.onSuccess?.({ id: 'session-1' });
-          }),
-          mutateAsync: vi.fn(),
-        } as unknown as ReturnType<typeof trpc.study.startSession.useMutation>;
-      },
-    );
-
+    setupMocksWithStartSession();
     const user = userEvent.setup();
     renderStudyPage();
 
@@ -205,57 +228,53 @@ describe('StudyPage', () => {
     expect(screen.getByText('1 of 2')).toBeInTheDocument();
   });
 
-  it('advances to next card after answering correct', async () => {
-    vi.mocked(trpc.study.startSession.useMutation).mockImplementation(
-      (opts?: { onSuccess?: (data: { id: string }) => void }) => {
-        return {
-          mutate: vi.fn(() => {
-            opts?.onSuccess?.({ id: 'session-1' });
-          }),
-          mutateAsync: vi.fn(),
-        } as unknown as ReturnType<typeof trpc.study.startSession.useMutation>;
-      },
-    );
-
+  it('advances to next card after clicking Next', async () => {
+    setupMocksWithStartSession();
     const user = userEvent.setup();
     renderStudyPage();
 
     await user.click(screen.getByRole('button', { name: /start studying/i }));
-    await user.click(screen.getByRole('button', { name: /reveal answer/i }));
-    await user.click(screen.getByRole('button', { name: /^correct$/i }));
+    await user.type(screen.getByPlaceholderText(/type your answer/i), '4');
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: /next/i }));
 
     await waitFor(() => {
       expect(screen.getByText('Capital of France?')).toBeInTheDocument();
     });
     expect(screen.getByText('2 of 2')).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText(/type your answer/i),
+    ).toBeInTheDocument();
   });
 
   it('shows session complete after answering all cards', async () => {
-    vi.mocked(trpc.study.startSession.useMutation).mockImplementation(
-      (opts?: { onSuccess?: (data: { id: string }) => void }) => {
-        return {
-          mutate: vi.fn(() => {
-            opts?.onSuccess?.({ id: 'session-1' });
-          }),
-          mutateAsync: vi.fn(),
-        } as unknown as ReturnType<typeof trpc.study.startSession.useMutation>;
-      },
-    );
-
+    setupMocksWithStartSession();
     const user = userEvent.setup();
     renderStudyPage();
 
     // Card 1
     await user.click(screen.getByRole('button', { name: /start studying/i }));
-    await user.click(screen.getByRole('button', { name: /reveal answer/i }));
-    await user.click(screen.getByRole('button', { name: /^correct$/i }));
+    await user.type(screen.getByPlaceholderText(/type your answer/i), '4');
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: /next/i }));
 
     // Card 2
     await waitFor(() => {
       expect(screen.getByText('Capital of France?')).toBeInTheDocument();
     });
-    await user.click(screen.getByRole('button', { name: /reveal answer/i }));
-    await user.click(screen.getByRole('button', { name: /^incorrect$/i }));
+    await user.type(screen.getByPlaceholderText(/type your answer/i), 'Paris');
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: /next/i }));
 
     await waitFor(() => {
       expect(
@@ -272,11 +291,20 @@ describe('StudyPage', () => {
       isError: true,
     } as ReturnType<typeof trpc.deck.getById.useQuery>);
 
+    setupBasicMocks();
+    // Override just the deck query
+    vi.mocked(trpc.deck.getById.useQuery).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    } as ReturnType<typeof trpc.deck.getById.useQuery>);
+
     renderStudyPage();
     expect(screen.getByText(/error loading deck/i)).toBeInTheDocument();
   });
 
   it('shows empty deck message when deck has no cards', () => {
+    setupBasicMocks();
     vi.mocked(trpc.deck.getById.useQuery).mockReturnValue({
       data: { ...mockDeck, cards: [] },
       isLoading: false,
@@ -288,6 +316,7 @@ describe('StudyPage', () => {
   });
 
   it('shows loading state while deck is loading', () => {
+    setupBasicMocks();
     vi.mocked(trpc.deck.getById.useQuery).mockReturnValue({
       data: undefined,
       isLoading: true,

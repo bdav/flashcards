@@ -105,20 +105,50 @@ describe('studyRouter', () => {
   });
 
   describe('submitAttempt', () => {
-    it('stores a correct attempt', async () => {
+    it('grades a correct answer and stores the attempt', async () => {
       const caller = createCaller();
       const session = await caller.study.startSession({ deckId });
 
+      // Card 0 back is 'Paris'
       const attempt = await caller.study.submitAttempt({
         studySessionId: session.id,
         cardId: cardIds[0],
-        result: 'correct',
+        userAnswer: 'Paris',
       });
 
       expect(attempt.id).toBeDefined();
       expect(attempt.studySessionId).toBe(session.id);
       expect(attempt.cardId).toBe(cardIds[0]);
+      expect(attempt.userAnswer).toBe('Paris');
       expect(attempt.result).toBe('correct');
+    });
+
+    it('grades correct with normalized matching (case, whitespace, punctuation)', async () => {
+      const caller = createCaller();
+      const session = await caller.study.startSession({ deckId });
+
+      // Card 0 back is 'Paris'
+      const attempt = await caller.study.submitAttempt({
+        studySessionId: session.id,
+        cardId: cardIds[0],
+        userAnswer: '  paris.  ',
+      });
+
+      expect(attempt.result).toBe('correct');
+    });
+
+    it('grades an incorrect answer', async () => {
+      const caller = createCaller();
+      const session = await caller.study.startSession({ deckId });
+
+      const attempt = await caller.study.submitAttempt({
+        studySessionId: session.id,
+        cardId: cardIds[1],
+        userAnswer: 'London',
+      });
+
+      expect(attempt.userAnswer).toBe('London');
+      expect(attempt.result).toBe('incorrect');
     });
 
     it('rejects duplicate attempt for same card in same session', async () => {
@@ -128,14 +158,14 @@ describe('studyRouter', () => {
       await caller.study.submitAttempt({
         studySessionId: session.id,
         cardId: cardIds[0],
-        result: 'correct',
+        userAnswer: 'Paris',
       });
 
       await expect(
         caller.study.submitAttempt({
           studySessionId: session.id,
           cardId: cardIds[0],
-          result: 'incorrect',
+          userAnswer: 'Paris',
         }),
       ).rejects.toThrow(/already submitted/i);
     });
@@ -149,22 +179,9 @@ describe('studyRouter', () => {
         caller.study.submitAttempt({
           studySessionId: session.id,
           cardId: cardIds[0],
-          result: 'correct',
+          userAnswer: 'Paris',
         }),
       ).rejects.toThrow(/already finished/i);
-    });
-
-    it('stores an incorrect attempt', async () => {
-      const caller = createCaller();
-      const session = await caller.study.startSession({ deckId });
-
-      const attempt = await caller.study.submitAttempt({
-        studySessionId: session.id,
-        cardId: cardIds[1],
-        result: 'incorrect',
-      });
-
-      expect(attempt.result).toBe('incorrect');
     });
   });
 
@@ -191,19 +208,19 @@ describe('studyRouter', () => {
   });
 
   describe('getSession', () => {
-    it('returns session with its attempts', async () => {
+    it('returns session with its attempts including userAnswer', async () => {
       const caller = createCaller();
       const session = await caller.study.startSession({ deckId });
 
       await caller.study.submitAttempt({
         studySessionId: session.id,
         cardId: cardIds[0],
-        result: 'correct',
+        userAnswer: 'Paris',
       });
       await caller.study.submitAttempt({
         studySessionId: session.id,
         cardId: cardIds[1],
-        result: 'incorrect',
+        userAnswer: 'London',
       });
 
       const fetched = await caller.study.getSession({ id: session.id });
@@ -211,7 +228,9 @@ describe('studyRouter', () => {
       expect(fetched.id).toBe(session.id);
       expect(fetched.attempts).toHaveLength(2);
       expect(fetched.attempts[0].result).toBe('correct');
+      expect(fetched.attempts[0].userAnswer).toBe('Paris');
       expect(fetched.attempts[1].result).toBe('incorrect');
+      expect(fetched.attempts[1].userAnswer).toBe('London');
     });
 
     it('throws NOT_FOUND for a nonexistent session', async () => {
@@ -228,20 +247,21 @@ describe('studyRouter', () => {
 
       const session = await caller.study.startSession({ deckId });
 
+      // Card backs: 'Paris', 'Tokyo', 'Brasília'
       await caller.study.submitAttempt({
         studySessionId: session.id,
         cardId: cardIds[0],
-        result: 'correct',
+        userAnswer: 'paris',
       });
       await caller.study.submitAttempt({
         studySessionId: session.id,
         cardId: cardIds[1],
-        result: 'incorrect',
+        userAnswer: 'London',
       });
       await caller.study.submitAttempt({
         studySessionId: session.id,
         cardId: cardIds[2],
-        result: 'correct',
+        userAnswer: 'Brasilia',
       });
 
       const finished = await caller.study.finishSession({ id: session.id });
@@ -254,7 +274,7 @@ describe('studyRouter', () => {
       const correctCount = fetched.attempts.filter(
         (a) => a.result === 'correct',
       ).length;
-      expect(correctCount).toBe(2);
+      expect(correctCount).toBe(2); // Paris (normalized) + Brasilia (diacritics stripped)
     });
   });
 });

@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { publicProcedure, router } from './trpc.js';
+import { gradeAnswer } from '../services/answerGrader.js';
 
 export const studyRouter = router({
   startSession: publicProcedure
@@ -30,7 +31,7 @@ export const studyRouter = router({
       z.object({
         studySessionId: z.string(),
         cardId: z.string(),
-        result: z.enum(['correct', 'incorrect']),
+        userAnswer: z.string().min(1, 'Answer cannot be empty'),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -66,11 +67,25 @@ export const studyRouter = router({
         });
       }
 
+      const card = await ctx.prisma.card.findUnique({
+        where: { id: input.cardId },
+      });
+
+      if (!card) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Card not found',
+        });
+      }
+
+      const result = gradeAnswer(input.userAnswer, card.back);
+
       return ctx.prisma.cardAttempt.create({
         data: {
           studySessionId: input.studySessionId,
           cardId: input.cardId,
-          result: input.result,
+          userAnswer: input.userAnswer,
+          result,
         },
       });
     }),

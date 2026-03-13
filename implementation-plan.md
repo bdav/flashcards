@@ -197,8 +197,9 @@ User can:
 - browse decks
 - open a deck
 - study cards one at a time
-- reveal the answer
-- mark correct / incorrect
+- type an answer and submit it
+- see whether the answer was correct (via normalized string matching)
+- view the correct answer after submitting
 - view simple performance stats
 
 ### Explicitly Out of Scope for MVP
@@ -294,6 +295,7 @@ endedAt nullable
 id
 studySessionId
 cardId
+userAnswer
 result
 createdAt
 ```
@@ -511,9 +513,11 @@ Use Tailwind + shadcn/ui.
 
 #### Study Page
 
-- show one card at a time
-- reveal answer button
-- mark correct / incorrect
+- show one card at a time (front/question only)
+- text input for typing an answer
+- submit answer (button or Enter)
+- show result (correct/incorrect) with the correct answer displayed
+- next card button
 - simple progress indicator
 
 #### Stats Page
@@ -723,9 +727,10 @@ Do not begin with lots of E2E tests.
 Start with test-first development for the logic that is easiest to isolate and highest value:
 
 1. CSV parser
-2. auth/password helpers
-3. study result calculation
-4. stats aggregation
+2. answer grading / normalization
+3. auth/password helpers
+4. study result calculation
+5. stats aggregation
 
 ### Second Priority: Backend Procedure Behavior
 
@@ -876,15 +881,18 @@ Also includes a minimal deck `getById` procedure so the study page can fetch dec
 
 1. fetching a deck by ID returns the deck with its cards
 2. starting a session creates a StudySession record
-3. submitting a correct attempt stores result
-4. submitting an incorrect attempt stores result
-5. finishing a session sets `endedAt`
-6. `getSession` returns session with attempts
+3. submitting a correct answer (normalized match) stores CORRECT result
+4. submitting an incorrect answer stores INCORRECT result
+5. answer grading normalizes whitespace, case, and punctuation before comparing
+6. finishing a session sets `endedAt`
+7. `getSession` returns session with attempts
 
 **Tasks:**
 
 - implement `deckRouter.getById` (just this one procedure — full CRUD comes later)
 - implement `studyRouter` with startSession/submitAttempt/finishSession/getSession
+- implement answer grading service (`services/answerGrader.ts`) with normalized string matching (lowercase, trim, strip punctuation) — this is the deterministic Tier 1 from the future AI grading pipeline
+- `submitAttempt` accepts `userAnswer` string, grades it server-side, and stores both the answer and the result
 - hardcode the seed user ID in the tRPC context for now
 
 **Definition of Done:**
@@ -903,17 +911,19 @@ Also includes a minimal deck `getById` procedure so the study page can fetch dec
 
 - create a simple home page that links to the seed deck
 - create study page at `/decks/:deckId/study`
-- show one card at a time (front only)
-- reveal answer button
-- correct / incorrect buttons after reveal
+- show one card at a time (front/question only)
+- text input for typing an answer
+- submit via button or Enter key
+- after submit, show correct/incorrect result with the correct answer
+- next card button to advance
 - progress indicator (e.g., "3 of 12")
-- session complete state
+- session complete state with summary
 
 **Tests:**
 
-- card front is shown initially, answer is hidden
-- clicking reveal shows the answer
-- correct/incorrect buttons submit attempts
+- card front is shown initially, answer input is visible, correct answer is hidden
+- submitting an answer shows the result and the correct answer
+- next button advances to the next card
 
 **Definition of Done:**
 
@@ -1211,6 +1221,7 @@ packages:
 ### Study Flow
 
 - empty deck -> empty state
+- empty answer submission -> validation error (require non-empty input)
 - submit failure -> clear retry path
 - duplicate finish/submit -> handle safely if possible
 
@@ -1294,7 +1305,10 @@ When in doubt, choose the simpler implementation that preserves clean boundaries
 
 ### Problem
 
-The current flashcard system evaluates answers using deterministic methods (exact match, normalized match, aliases). This works well for many cards but fails when correct answers are phrased differently than the canonical answer.
+The MVP flashcard system evaluates answers using deterministic normalized string matching
+(lowercase, trim whitespace, strip punctuation). This is implemented in `services/answerGrader.ts`
+as the Tier 1 baseline. It works well for factual recall cards but fails when correct answers
+are phrased differently than the canonical answer.
 
 Examples:
 
