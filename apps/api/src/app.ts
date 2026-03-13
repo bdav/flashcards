@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
 import { appRouter } from './routers/index.js';
+import { createContext } from './context.js';
 
 const app = express();
 
@@ -12,7 +13,7 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
 
-app.use('/trpc', createExpressMiddleware({ router: appRouter }));
+app.use('/trpc', createExpressMiddleware({ router: appRouter, createContext }));
 
 export { app };
 export type AppRouter = typeof appRouter;
