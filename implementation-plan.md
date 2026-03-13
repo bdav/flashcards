@@ -297,8 +297,13 @@ studySessionId
 cardId
 userAnswer
 result
+attemptNumber
 createdAt
 ```
+
+Multiple CardAttempts per card per session are allowed. When the study flow re-queues
+an incorrect card, each retry creates a new CardAttempt with an incrementing
+`attemptNumber`. This enables tracking how many attempts it takes to master each card.
 
 ### Relationships
 
@@ -306,7 +311,7 @@ createdAt
 - Deck has many Cards
 - User has many StudySessions
 - Deck has many StudySessions
-- StudySession has many CardAttempts
+- StudySession has many CardAttempts (multiple per card allowed)
 - Card has many CardAttempts
 
 ### Future Model, Not MVP
@@ -936,36 +941,48 @@ open app -> study seed deck -> record results.
 
 ---
 
-### PR 7: Stats — Backend
+### PR 7: Multi-Attempt Support + Stats — Backend
 
-**Scope:** Stats aggregation queries on the API side.
+**Scope:** Allow multiple attempts per card per session (supporting the re-queue behavior),
+add `attemptNumber` tracking, and build stats aggregation queries.
 
 **TDD Sequence — write tests first for:**
 
-1. deck stats returns total attempts and percent correct
-2. overall stats aggregates across all decks
-3. stats handle zero-attempt case gracefully
+1. `submitAttempt` allows multiple attempts for the same card in a session
+2. `submitAttempt` assigns incrementing `attemptNumber` per card per session
+3. `getSession` returns all attempts including retries
+4. deck stats returns total attempts, first-try accuracy, and overall accuracy
+5. deck stats returns per-card attempts-to-correct (number of attempts before first correct)
+6. overall stats aggregates across all decks
+7. stats handle zero-attempt case gracefully
 
 **Tasks:**
 
+- add `attemptNumber` field to CardAttempt in Prisma schema, run migration
+- remove the duplicate-attempt rejection in `submitAttempt` — allow re-attempts for re-queued cards
+- auto-assign `attemptNumber` based on existing attempts for that card in the session
 - implement `statsRouter` with deckStats/overallStats procedures
+- `deckStats` returns: total attempts, unique cards studied, first-try accuracy, overall accuracy, and per-card attempts-to-correct
+- `overallStats` returns: aggregate totals across all decks, plus list of weak cards (highest avg attempts-to-correct)
 
 **Definition of Done:**
 
+- multiple attempts per card per session are persisted correctly
 - all stats tests pass
-- stats are accurate
+- stats accurately reflect multi-attempt data
 
 ---
 
 ### PR 8: Stats — Frontend
 
-**Scope:** Stats page UI.
+**Scope:** Stats page UI leveraging multi-attempt data.
 
 **Tasks:**
 
 - create stats page at `/stats`
-- show overall stats (total attempts, percent correct)
-- show per-deck summary table
+- show overall stats (total attempts, first-try accuracy, overall accuracy)
+- show per-deck summary table with attempts-to-correct metrics
+- highlight weak cards (cards that consistently require multiple attempts)
 - empty state when no study sessions exist
 - add nav links between home, study, and stats
 
@@ -976,7 +993,7 @@ open app -> study seed deck -> record results.
 
 **Definition of Done:**
 
-- user can view their study performance
+- user can view their study performance including attempts-per-card insights
 - stats page handles empty and populated states
 
 ---
@@ -1223,7 +1240,8 @@ packages:
 - empty deck -> empty state
 - empty answer submission -> validation error (require non-empty input)
 - submit failure -> clear retry path
-- duplicate finish/submit -> handle safely if possible
+- re-queued card submission -> creates new CardAttempt with incremented attemptNumber
+- duplicate finish -> handle safely if possible
 
 ---
 

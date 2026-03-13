@@ -53,20 +53,6 @@ export const studyRouter = router({
         });
       }
 
-      const existing = await ctx.prisma.cardAttempt.findFirst({
-        where: {
-          studySessionId: input.studySessionId,
-          cardId: input.cardId,
-        },
-      });
-
-      if (existing) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'Attempt already submitted for this card in this session',
-        });
-      }
-
       const card = await ctx.prisma.card.findUnique({
         where: { id: input.cardId },
       });
@@ -78,15 +64,33 @@ export const studyRouter = router({
         });
       }
 
+      if (card.deckId !== session.deckId) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: "Card does not belong to this session's deck",
+        });
+      }
+
       const result = gradeAnswer(input.userAnswer, card.back);
 
-      return ctx.prisma.cardAttempt.create({
-        data: {
-          studySessionId: input.studySessionId,
-          cardId: input.cardId,
-          userAnswer: input.userAnswer,
-          result,
-        },
+      // Wrap count + create in a transaction to prevent race conditions on attemptNumber
+      return ctx.prisma.$transaction(async (tx) => {
+        const previousAttempts = await tx.cardAttempt.count({
+          where: {
+            studySessionId: input.studySessionId,
+            cardId: input.cardId,
+          },
+        });
+
+        return tx.cardAttempt.create({
+          data: {
+            studySessionId: input.studySessionId,
+            cardId: input.cardId,
+            userAnswer: input.userAnswer,
+            result,
+            attemptNumber: previousAttempts + 1,
+          },
+        });
       });
     }),
 
@@ -122,7 +126,7 @@ export const studyRouter = router({
     .query(async ({ ctx, input }) => {
       const session = await ctx.prisma.studySession.findUnique({
         where: { id: input.id },
-        include: { attempts: true },
+        include: { attempts: { orderBy: { createdAt: 'asc' } } },
       });
 
       if (!session) {

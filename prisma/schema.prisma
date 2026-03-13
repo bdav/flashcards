@@ -68,10 +68,12 @@ model CardAttempt {
   cardId         String
   userAnswer     String?
   result         AttemptResult
+  attemptNumber  Int           @default(1)
   createdAt      DateTime      @default(now())
   studySession   StudySession  @relation(fields: [studySessionId], references: [id], onDelete: Cascade)
   card           Card          @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   @@index([studySessionId])
   @@index([cardId])
+  @@index([studySessionId, cardId])
 }

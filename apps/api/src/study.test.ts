@@ -151,23 +151,84 @@ describe('studyRouter', () => {
       expect(attempt.result).toBe('incorrect');
     });
 
-    it('rejects duplicate attempt for same card in same session', async () => {
+    it('allows multiple attempts for the same card in a session (re-queue)', async () => {
       const caller = createCaller();
       const session = await caller.study.startSession({ deckId });
 
-      await caller.study.submitAttempt({
+      // First attempt: incorrect
+      const attempt1 = await caller.study.submitAttempt({
+        studySessionId: session.id,
+        cardId: cardIds[0],
+        userAnswer: 'London',
+      });
+      expect(attempt1.result).toBe('incorrect');
+      expect(attempt1.attemptNumber).toBe(1);
+
+      // Second attempt: correct
+      const attempt2 = await caller.study.submitAttempt({
         studySessionId: session.id,
         cardId: cardIds[0],
         userAnswer: 'Paris',
       });
+      expect(attempt2.result).toBe('correct');
+      expect(attempt2.attemptNumber).toBe(2);
+    });
+
+    it('assigns incrementing attemptNumber per card per session', async () => {
+      const caller = createCaller();
+      const session = await caller.study.startSession({ deckId });
+
+      const a1 = await caller.study.submitAttempt({
+        studySessionId: session.id,
+        cardId: cardIds[1],
+        userAnswer: 'wrong1',
+      });
+      const a2 = await caller.study.submitAttempt({
+        studySessionId: session.id,
+        cardId: cardIds[1],
+        userAnswer: 'wrong2',
+      });
+      const a3 = await caller.study.submitAttempt({
+        studySessionId: session.id,
+        cardId: cardIds[1],
+        userAnswer: 'Tokyo',
+      });
+
+      expect(a1.attemptNumber).toBe(1);
+      expect(a2.attemptNumber).toBe(2);
+      expect(a3.attemptNumber).toBe(3);
+
+      // Different card in same session starts at 1
+      const b1 = await caller.study.submitAttempt({
+        studySessionId: session.id,
+        cardId: cardIds[2],
+        userAnswer: 'Brasilia',
+      });
+      expect(b1.attemptNumber).toBe(1);
+    });
+
+    it('rejects attempt for a card from a different deck', async () => {
+      const otherDeck = await prisma.deck.create({
+        data: {
+          name: 'Other Deck',
+          userId,
+          cards: {
+            create: [{ front: 'Other Q', back: 'Other A' }],
+          },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      const session = await caller.study.startSession({ deckId });
 
       await expect(
         caller.study.submitAttempt({
           studySessionId: session.id,
-          cardId: cardIds[0],
-          userAnswer: 'Paris',
+          cardId: otherDeck.cards[0].id,
+          userAnswer: 'Other A',
         }),
-      ).rejects.toThrow(/already submitted/i);
+      ).rejects.toThrow(/does not belong/i);
     });
 
     it('rejects attempt on a finished session', async () => {
@@ -208,10 +269,15 @@ describe('studyRouter', () => {
   });
 
   describe('getSession', () => {
-    it('returns session with its attempts including userAnswer', async () => {
+    it('returns session with all attempts including retries', async () => {
       const caller = createCaller();
       const session = await caller.study.startSession({ deckId });
 
+      await caller.study.submitAttempt({
+        studySessionId: session.id,
+        cardId: cardIds[0],
+        userAnswer: 'London',
+      });
       await caller.study.submitAttempt({
         studySessionId: session.id,
         cardId: cardIds[0],
@@ -220,17 +286,24 @@ describe('studyRouter', () => {
       await caller.study.submitAttempt({
         studySessionId: session.id,
         cardId: cardIds[1],
-        userAnswer: 'London',
+        userAnswer: 'Tokyo',
       });
 
       const fetched = await caller.study.getSession({ id: session.id });
 
       expect(fetched.id).toBe(session.id);
-      expect(fetched.attempts).toHaveLength(2);
-      expect(fetched.attempts[0].result).toBe('correct');
-      expect(fetched.attempts[0].userAnswer).toBe('Paris');
-      expect(fetched.attempts[1].result).toBe('incorrect');
-      expect(fetched.attempts[1].userAnswer).toBe('London');
+      expect(fetched.attempts).toHaveLength(3);
+      // First attempt for card 0: incorrect
+      expect(fetched.attempts[0].cardId).toBe(cardIds[0]);
+      expect(fetched.attempts[0].result).toBe('incorrect');
+      expect(fetched.attempts[0].attemptNumber).toBe(1);
+      // Retry for card 0: correct
+      expect(fetched.attempts[1].cardId).toBe(cardIds[0]);
+      expect(fetched.attempts[1].result).toBe('correct');
+      expect(fetched.attempts[1].attemptNumber).toBe(2);
+      // Card 1
+      expect(fetched.attempts[2].cardId).toBe(cardIds[1]);
+      expect(fetched.attempts[2].attemptNumber).toBe(1);
     });
 
     it('throws NOT_FOUND for a nonexistent session', async () => {
