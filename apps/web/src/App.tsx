@@ -1,14 +1,7 @@
-import { Button } from "@/components/ui/button"
-
 export default function App() {
   return (
-    <main className="p-6 space-y-4">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
-
-      <Button>Default</Button>
-      <Button variant="secondary">Secondary</Button>
-      <Button variant="outline">Outline</Button>
-      <Button variant="destructive">Destructive</Button>
+    <main className="p-6">
+      <h1 className="text-2xl font-bold">Flashcards</h1>
     </main>
   )
 }
