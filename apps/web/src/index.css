@@ -1,1 +1,23 @@
 @import 'tailwindcss';
+
+@theme inline {
+  --color-soft-foreground: oklch(0.45 0 0);
+  --color-soft-muted-foreground: oklch(0.75 0.12 250);
+  --animate-pulse-halo: pulse-halo 2s ease-in-out infinite;
+}
+
+@keyframes pulse-halo {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 1px oklch(0.7 0.25 250 / 0.3))
+      drop-shadow(0 0 1px oklch(0.7 0.25 250 / 0))
+      drop-shadow(0 0 1px oklch(0.7 0.25 250 / 0));
+    color: oklch(0.75 0.12 250);
+  }
+  50% {
+    filter: drop-shadow(0 0 4px oklch(0.72 0.25 250))
+      drop-shadow(0 0 10px oklch(0.67 0.22 250))
+      drop-shadow(0 0 18px oklch(0.62 0.18 250 / 0.8));
+    color: white;
+  }
+}

@@ -2,6 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { type useCardQueue } from './useCardQueue';
 
+type Card = { id: string; front: string; back: string };
+
+type HistoryEntry = {
+  card: Card;
+  result: 'correct' | 'incorrect';
+  userAnswer: string;
+};
+
 type StudyState =
   | { phase: 'idle' }
   | { phase: 'answering' }
@@ -9,6 +17,10 @@ type StudyState =
       phase: 'result';
       result: 'correct' | 'incorrect';
       userAnswer: string;
+    }
+  | {
+      phase: 'reviewing';
+      reviewIndex: number;
     }
   | { phase: 'complete' };
 
@@ -20,12 +32,14 @@ export function useStudySession(
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [answerInput, setAnswerInput] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   const startSession = trpc.study.startSession.useMutation({
     onSuccess: (session) => {
       setError(null);
       setSessionId(session.id);
       setAnswerInput('');
+      setHistory([]);
       cardQueue.reset();
       setStudyState({ phase: 'answering' });
     },
@@ -56,6 +70,11 @@ export function useStudySession(
         cardId: card.id,
         userAnswer: answerInput,
       });
+
+      setHistory((prev) => [
+        ...prev,
+        { card, result: attempt.result, userAnswer: answerInput },
+      ]);
 
       setStudyState({
         phase: 'result',
@@ -89,6 +108,65 @@ export function useStudySession(
     }
   }, [studyState, sessionId, cardQueue, finishSession]);
 
+  const handleBack = useCallback(() => {
+    if (studyState.phase === 'answering' && history.length > 0) {
+      setStudyState({
+        phase: 'reviewing',
+        reviewIndex: history.length - 1,
+      });
+    } else if (studyState.phase === 'result' && history.length > 1) {
+      setStudyState({
+        phase: 'reviewing',
+        reviewIndex: history.length - 2,
+      });
+    } else if (studyState.phase === 'reviewing' && studyState.reviewIndex > 0) {
+      setStudyState({
+        phase: 'reviewing',
+        reviewIndex: studyState.reviewIndex - 1,
+      });
+    }
+  }, [studyState, history.length]);
+
+  const handleForward = useCallback(() => {
+    if (studyState.phase !== 'reviewing') return;
+
+    if (studyState.reviewIndex < history.length - 1) {
+      setStudyState({
+        phase: 'reviewing',
+        reviewIndex: studyState.reviewIndex + 1,
+      });
+    } else {
+      // Return to current card (answering or result)
+      const lastEntry = history[history.length - 1];
+      const currentCard = cardQueue.currentCard;
+
+      if (!currentCard) {
+        // Queue exhausted — stay on last review entry
+        return;
+      } else if (currentCard.id !== lastEntry?.card.id) {
+        // We're on a new card that hasn't been answered yet
+        setStudyState({ phase: 'answering' });
+      } else if (lastEntry) {
+        // The current card was already answered (result phase)
+        setStudyState({
+          phase: 'result',
+          result: lastEntry.result,
+          userAnswer: lastEntry.userAnswer,
+        });
+      }
+    }
+  }, [studyState, history, cardQueue.currentCard]);
+
+  const canGoBack =
+    (studyState.phase === 'answering' && history.length > 0) ||
+    (studyState.phase === 'result' && history.length > 1) ||
+    (studyState.phase === 'reviewing' && studyState.reviewIndex > 0);
+
+  const reviewEntry =
+    studyState.phase === 'reviewing'
+      ? history[studyState.reviewIndex]
+      : undefined;
+
   useEffect(() => {
     if (studyState.phase !== 'result') return;
     function onKeyDown(e: KeyboardEvent) {
@@ -106,5 +184,9 @@ export function useStudySession(
     handleStart,
     handleSubmitAnswer,
     handleNext,
+    handleBack,
+    handleForward,
+    canGoBack,
+    reviewEntry,
   };
 }

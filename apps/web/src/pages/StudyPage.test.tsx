@@ -231,7 +231,7 @@ describe('StudyPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Capital of France?')).toBeInTheDocument();
     });
-    expect(screen.getByText('2 of 2')).toBeInTheDocument();
+    expect(screen.getByText('2 / 2')).toBeInTheDocument();
   });
 
   it('shows progress indicator during study', async () => {
@@ -241,7 +241,7 @@ describe('StudyPage', () => {
 
     await user.click(screen.getByRole('button', { name: /start studying/i }));
 
-    expect(screen.getByText('1 of 2')).toBeInTheDocument();
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
   });
 
   it('advances to next card after clicking Next', async () => {
@@ -261,7 +261,7 @@ describe('StudyPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Capital of France?')).toBeInTheDocument();
     });
-    expect(screen.getByText('2 of 2')).toBeInTheDocument();
+    expect(screen.getByText('2 / 2')).toBeInTheDocument();
     expect(screen.getByRole('textbox')).toBeInTheDocument();
   });
 
@@ -383,5 +383,155 @@ describe('StudyPage', () => {
 
     renderStudyPage();
     expect(screen.getByText(/loading deck/i)).toBeInTheDocument();
+  });
+
+  describe('review navigation', () => {
+    async function startAndAnswerCard(
+      user: ReturnType<typeof userEvent.setup>,
+      answer: string,
+    ) {
+      await user.type(screen.getByRole('textbox'), answer);
+      await user.click(screen.getByRole('button', { name: /submit/i }));
+      await waitFor(() => {
+        expect(screen.getByTestId('result')).toBeInTheDocument();
+      });
+    }
+
+    async function advanceToNextCard(user: ReturnType<typeof userEvent.setup>) {
+      await user.click(screen.getByRole('button', { name: /next/i }));
+      await waitFor(() => {
+        expect(screen.getByRole('textbox')).toBeInTheDocument();
+      });
+    }
+
+    it('navigates back from answering phase to review previous card', async () => {
+      setupMocksWithStartSession();
+      const user = userEvent.setup();
+      renderStudyPage();
+
+      await user.click(screen.getByRole('button', { name: /start studying/i }));
+
+      // Answer card 1 and advance to card 2
+      await startAndAnswerCard(user, '4');
+      await advanceToNextCard(user);
+      expect(screen.getByText('Capital of France?')).toBeInTheDocument();
+
+      // Back button should be enabled — click it to review card 1
+      const backButton = screen.getByRole('button', { name: /previous/i });
+      expect(backButton).not.toBeDisabled();
+      await user.click(backButton);
+
+      // Should see card 1's result in review mode
+      const answerArea = screen.getByTestId('correct-answer');
+      expect(answerArea).toHaveTextContent('What is 2+2?');
+      expect(answerArea).toHaveTextContent('4');
+    });
+
+    it('navigates back from result phase to review earlier card', async () => {
+      setupMocksWithStartSession();
+      const user = userEvent.setup();
+      renderStudyPage();
+
+      await user.click(screen.getByRole('button', { name: /start studying/i }));
+
+      // Answer card 1, advance, answer card 2
+      await startAndAnswerCard(user, '4');
+      await advanceToNextCard(user);
+      await startAndAnswerCard(user, 'Paris');
+
+      // Now in result phase for card 2 — back should show card 1
+      const backButton = screen.getByRole('button', { name: /previous/i });
+      await user.click(backButton);
+
+      const answerArea = screen.getByTestId('correct-answer');
+      expect(answerArea).toHaveTextContent('What is 2+2?');
+      expect(answerArea).toHaveTextContent('4');
+    });
+
+    it('navigates forward from review to resume answering', async () => {
+      setupMocksWithStartSession();
+      const user = userEvent.setup();
+      renderStudyPage();
+
+      await user.click(screen.getByRole('button', { name: /start studying/i }));
+
+      // Answer card 1, advance to card 2
+      await startAndAnswerCard(user, '4');
+      await advanceToNextCard(user);
+
+      // Go back to review card 1
+      await user.click(screen.getByRole('button', { name: /previous/i }));
+      expect(screen.getByTestId('correct-answer')).toHaveTextContent(
+        'What is 2+2?',
+      );
+
+      // Go forward to resume answering card 2
+      await user.click(screen.getByRole('button', { name: /next/i }));
+      await waitFor(() => {
+        expect(screen.getByText('Capital of France?')).toBeInTheDocument();
+      });
+      expect(screen.getByRole('textbox')).toBeInTheDocument();
+    });
+
+    it('navigates forward from review to resume result phase', async () => {
+      setupMocksWithStartSession();
+      const user = userEvent.setup();
+      renderStudyPage();
+
+      await user.click(screen.getByRole('button', { name: /start studying/i }));
+
+      // Answer card 1, advance, answer card 2 (stay on result)
+      await startAndAnswerCard(user, '4');
+      await advanceToNextCard(user);
+      await startAndAnswerCard(user, 'Paris');
+
+      // Go back to card 1
+      await user.click(screen.getByRole('button', { name: /previous/i }));
+      expect(screen.getByTestId('correct-answer')).toHaveTextContent(
+        'What is 2+2?',
+      );
+
+      // Go forward to return to card 2's result
+      await user.click(screen.getByRole('button', { name: /next/i }));
+      await waitFor(() => {
+        const answerArea = screen.getByTestId('correct-answer');
+        expect(answerArea).toHaveTextContent('Capital of France?');
+        expect(answerArea).toHaveTextContent('Paris');
+      });
+    });
+
+    it('cannot go back past the first history entry', async () => {
+      setupMocksWithStartSession();
+      const user = userEvent.setup();
+      renderStudyPage();
+
+      await user.click(screen.getByRole('button', { name: /start studying/i }));
+
+      // Answer card 1, advance to card 2
+      await startAndAnswerCard(user, '4');
+      await advanceToNextCard(user);
+
+      // Go back to card 1 review
+      await user.click(screen.getByRole('button', { name: /previous/i }));
+      expect(screen.getByTestId('correct-answer')).toHaveTextContent(
+        'What is 2+2?',
+      );
+
+      // Back button should now be disabled — can't go further back
+      const backButton = screen.getByRole('button', { name: /previous/i });
+      expect(backButton).toBeDisabled();
+    });
+
+    it('back button is disabled when there is no history', async () => {
+      setupMocksWithStartSession();
+      const user = userEvent.setup();
+      renderStudyPage();
+
+      await user.click(screen.getByRole('button', { name: /start studying/i }));
+
+      // On the first card with no history — back should be disabled
+      const backButton = screen.getByRole('button', { name: /previous/i });
+      expect(backButton).toBeDisabled();
+    });
   });
 });

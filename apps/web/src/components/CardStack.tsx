@@ -3,19 +3,25 @@ import { type ReactNode } from 'react';
 interface CardStackProps {
   queueLength: number;
   children: ReactNode;
+  progress?: string;
 }
 
-export function CardStack({ queueLength, children }: CardStackProps) {
+export function CardStack({ queueLength, children, progress }: CardStackProps) {
   return (
     <div className="relative w-full max-w-md pt-3">
       {queueLength > 2 && (
-        <div className="absolute inset-x-2 top-0 h-4 rounded-t-xl border-2 border-b-0 bg-white shadow-sm" />
+        <div className="absolute inset-x-2 top-0 h-4 rounded-t-xl border border-border border-b-0 bg-white shadow-sm" />
       )}
       {queueLength > 1 && (
-        <div className="absolute inset-x-1 top-1.5 h-4 rounded-t-xl border-2 border-b-0 bg-white shadow-sm" />
+        <div className="absolute inset-x-1 top-1.5 h-4 rounded-t-xl border border-border border-b-0 bg-white shadow-sm" />
       )}
-      <div className="relative flex aspect-3/2 w-full flex-col items-center justify-center rounded-xl border-2 bg-white p-8 shadow-md">
+      <div className="relative flex aspect-3/2 w-full flex-col items-center justify-center rounded-xl border border-border bg-white p-8 shadow-md">
         {children}
+        {progress && (
+          <span className="absolute bottom-3 right-4 text-xs text-soft-muted-foreground">
+            {progress}
+          </span>
+        )}
       </div>
     </div>
   );
