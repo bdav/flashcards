@@ -2,12 +2,17 @@
   "name": "flashcards",
   "version": "1.0.0",
   "description": "",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-      "dev:web": "pnpm --filter web dev",
+    "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api dev",
     "dev": "concurrently \"pnpm dev:api\" \"pnpm dev:web\"",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint": "pnpm --filter web lint && pnpm --filter api lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +22,28 @@
     "prisma": "^7.5.0"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "@eslint/js": "^9.39.4",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "globals": "^17.4.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.3.3",
+    "prettier": "^3.8.1",
+    "typescript-eslint": "^8.56.1"
+  },
+  "lint-staged": {
+    "apps/web/**/*.{ts,tsx}": [
+      "eslint --fix --config apps/web/eslint.config.js",
+      "prettier --write"
+    ],
+    "apps/api/**/*.ts": [
+      "eslint --fix --config apps/api/eslint.config.js",
+      "prettier --write"
+    ],
+    "*.{json,md,css,html,yaml,yml}": [
+      "prettier --write"
+    ]
   }
 }

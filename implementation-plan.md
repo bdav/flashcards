@@ -1186,7 +1186,7 @@ Example `pnpm-workspace.yaml`:
 
 ```yaml
 packages:
-  - "apps/*"
+  - 'apps/*'
 ```
 
 ---

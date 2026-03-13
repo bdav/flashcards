@@ -9,24 +9,29 @@ Flashcard study app — pnpm monorepo with a React frontend (`apps/web`) and Exp
 ## Commands
 
 ### Development
+
 - `pnpm dev` — start both API (port 3001) and web (port 5173) concurrently
 - `pnpm dev:api` — start API server only
 - `pnpm dev:web` — start web dev server only
 
 ### Testing
+
 - `pnpm --filter web test` — run web Vitest tests
 - `pnpm --filter web test:watch` — run web tests in watch mode
 - `pnpm --filter api test` — run API Vitest tests
 
 ### Web App (`apps/web`)
+
 - `pnpm --filter web build` — production build (`tsc -b && vite build`)
 - `pnpm --filter web lint` — run ESLint
 
 ### Database
+
 - `pnpm prisma migrate dev` — run migrations
 - `pnpm prisma generate` — regenerate Prisma client
 
 ### Environment Variables
+
 - `DATABASE_URL` — SQLite connection string (default: `file:./dev.db`), defined in `.env`
 
 ## Architecture
