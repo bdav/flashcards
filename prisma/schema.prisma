@@ -66,7 +66,7 @@ model CardAttempt {
   id             String        @id @default(cuid())
   studySessionId String
   cardId         String
-  userAnswer     String        @default("")
+  userAnswer     String?
   result         AttemptResult
   createdAt      DateTime      @default(now())
   studySession   StudySession  @relation(fields: [studySessionId], references: [id], onDelete: Cascade)

@@ -86,17 +86,12 @@ function setupMocksWithStartSession() {
   vi.mocked(trpc.study.submitAttempt.useMutation).mockReturnValue({
     mutate: vi.fn(),
     mutateAsync: vi.fn((args) => {
-      // Simulate server grading: exact match on card back
-      const card = mockDeck.cards.find((c) => c.id === args.cardId);
-      const isCorrect =
-        card &&
-        args.userAnswer.trim().toLowerCase() === card.back.toLowerCase();
       return Promise.resolve({
         id: 'attempt-1',
         studySessionId: args.studySessionId,
         cardId: args.cardId,
         userAnswer: args.userAnswer,
-        result: isCorrect ? 'correct' : 'incorrect',
+        result: 'correct' as const,
         createdAt: new Date(),
       });
     }),
@@ -189,6 +184,21 @@ describe('StudyPage', () => {
 
   it('shows incorrect result after submitting wrong answer', async () => {
     setupMocksWithStartSession();
+    // Override submitAttempt to return incorrect
+    vi.mocked(trpc.study.submitAttempt.useMutation).mockReturnValue({
+      mutate: vi.fn(),
+      mutateAsync: vi.fn((args) => {
+        return Promise.resolve({
+          id: 'attempt-1',
+          studySessionId: args.studySessionId,
+          cardId: args.cardId,
+          userAnswer: args.userAnswer,
+          result: 'incorrect' as const,
+          createdAt: new Date(),
+        });
+      }),
+    } as unknown as ReturnType<typeof trpc.study.submitAttempt.useMutation>);
+
     const user = userEvent.setup();
     renderStudyPage();
 
@@ -284,15 +294,25 @@ describe('StudyPage', () => {
     expect(screen.getByText(/you studied all 2 cards/i)).toBeInTheDocument();
   });
 
-  it('shows error state when deck query fails', () => {
-    vi.mocked(trpc.deck.getById.useQuery).mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: true,
-    } as ReturnType<typeof trpc.deck.getById.useQuery>);
+  it('does not submit when answer is empty', async () => {
+    setupMocksWithStartSession();
+    const user = userEvent.setup();
+    renderStudyPage();
 
+    await user.click(screen.getByRole('button', { name: /start studying/i }));
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+
+    // Should still be on the same card, no result shown
+    expect(screen.queryByTestId('result')).not.toBeInTheDocument();
+    expect(screen.getByText('What is 2+2?')).toBeInTheDocument();
+    expect(
+      vi.mocked(trpc.study.submitAttempt.useMutation).mock.results[0]?.value
+        .mutateAsync,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('shows error state when deck query fails', () => {
     setupBasicMocks();
-    // Override just the deck query
     vi.mocked(trpc.deck.getById.useQuery).mockReturnValue({
       data: undefined,
       isLoading: false,

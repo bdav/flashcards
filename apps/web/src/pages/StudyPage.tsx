@@ -83,8 +83,8 @@ export default function StudyPage() {
     if (nextIndex >= cards.length) {
       try {
         await finishSession.mutateAsync({ id: sessionId });
-      } catch {
-        // Session finish is best-effort
+      } catch (err) {
+        console.error('Failed to finish study session:', err);
       }
       setStudyState({ phase: 'complete' });
     } else {
@@ -140,10 +140,7 @@ export default function StudyPage() {
     );
   }
 
-  const cardIndex =
-    studyState.phase === 'answering'
-      ? studyState.cardIndex
-      : studyState.cardIndex;
+  const { cardIndex } = studyState;
   const currentCard = cards[cardIndex];
 
   return (
