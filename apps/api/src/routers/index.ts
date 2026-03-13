@@ -1,12 +1,13 @@
-import { initTRPC } from '@trpc/server';
-import { type Context } from '../context.js';
+import { publicProcedure, router } from './trpc.js';
+import { deckRouter } from './deck.js';
+import { studyRouter } from './study.js';
 
-const t = initTRPC.context<Context>().create();
+export { publicProcedure };
 
-export const publicProcedure = t.procedure;
-
-export const appRouter = t.router({
+export const appRouter = router({
   healthCheck: publicProcedure.query(() => {
     return { ok: true };
   }),
+  deck: deckRouter,
+  study: studyRouter,
 });
