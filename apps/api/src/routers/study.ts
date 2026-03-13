@@ -34,6 +34,38 @@ export const studyRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const session = await ctx.prisma.studySession.findUnique({
+        where: { id: input.studySessionId },
+      });
+
+      if (!session) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Study session not found',
+        });
+      }
+
+      if (session.endedAt) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Session already finished',
+        });
+      }
+
+      const existing = await ctx.prisma.cardAttempt.findFirst({
+        where: {
+          studySessionId: input.studySessionId,
+          cardId: input.cardId,
+        },
+      });
+
+      if (existing) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Attempt already submitted for this card in this session',
+        });
+      }
+
       return ctx.prisma.cardAttempt.create({
         data: {
           studySessionId: input.studySessionId,

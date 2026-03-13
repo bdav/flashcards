@@ -121,6 +121,39 @@ describe('studyRouter', () => {
       expect(attempt.result).toBe('correct');
     });
 
+    it('rejects duplicate attempt for same card in same session', async () => {
+      const caller = createCaller();
+      const session = await caller.study.startSession({ deckId });
+
+      await caller.study.submitAttempt({
+        studySessionId: session.id,
+        cardId: cardIds[0],
+        result: 'correct',
+      });
+
+      await expect(
+        caller.study.submitAttempt({
+          studySessionId: session.id,
+          cardId: cardIds[0],
+          result: 'incorrect',
+        }),
+      ).rejects.toThrow(/already submitted/i);
+    });
+
+    it('rejects attempt on a finished session', async () => {
+      const caller = createCaller();
+      const session = await caller.study.startSession({ deckId });
+      await caller.study.finishSession({ id: session.id });
+
+      await expect(
+        caller.study.submitAttempt({
+          studySessionId: session.id,
+          cardId: cardIds[0],
+          result: 'correct',
+        }),
+      ).rejects.toThrow(/already finished/i);
+    });
+
     it('stores an incorrect attempt', async () => {
       const caller = createCaller();
       const session = await caller.study.startSession({ deckId });

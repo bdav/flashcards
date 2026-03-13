@@ -1088,6 +1088,8 @@ open app -> study seed deck -> record results.
 - add auth middleware for protected procedures
 - update all existing routers to use authenticated user from session instead of hardcoded seed user
 - add ownership checks to deck, card, study, and stats procedures
+- add ownership validation to `submitAttempt` (verify session belongs to user, card belongs to session's deck)
+- add ownership validation to `getSession` (verify session belongs to user)
 
 **Definition of Done:**
 
@@ -1287,3 +1289,236 @@ Implement this project with the following priorities:
 10. Be pragmatic: not every presentational component needs heavy test coverage.
 
 When in doubt, choose the simpler implementation that preserves clean boundaries, strong typing, and a fast feedback loop.
+
+## Future Enhancement: AI-Assisted Answer Evaluation
+
+### Problem
+
+The current flashcard system evaluates answers using deterministic methods (exact match, normalized match, aliases). This works well for many cards but fails when correct answers are phrased differently than the canonical answer.
+
+Examples:
+
+Canonical: "Paris"  
+User: "The capital of France is Paris"
+
+Canonical: "Mitochondria produce ATP"  
+User: "Mitochondria make ATP"
+
+Exact string matching is too brittle for natural language answers.
+
+---
+
+## Goals
+
+1. Accept semantically correct answers even if phrased differently.
+2. Keep inference costs extremely low.
+3. Avoid reliance on external APIs where possible.
+4. Maintain fast evaluation latency.
+5. Preserve deterministic behavior whenever possible.
+
+---
+
+## Architecture
+
+Answer grading will use a three-tier pipeline:
+
+1. Deterministic validation
+2. Local embedding similarity
+3. Local LLM fallback for ambiguous cases
+
+Pipeline:
+
+User Answer
+↓
+Deterministic Match
+↓
+Embedding Similarity
+↓
+LLM Adjudication (rare)
+
+---
+
+## Tier 1: Deterministic Validation
+
+Performed for every answer.
+
+Techniques include:
+
+- lowercase normalization
+- punctuation stripping
+- whitespace normalization
+- alias matching
+
+Example:
+
+canonical: "paris"
+
+normalize("Paris.") → "paris"
+
+Cards may store accepted aliases:
+
+acceptedAliases = [
+"capital of france",
+"paris france"
+]
+
+If deterministic validation succeeds, the answer is accepted immediately.
+
+---
+
+## Tier 2: Local Embedding Similarity
+
+For answers that fail deterministic validation, semantic similarity is computed.
+
+Recommended embedding model:
+
+sentence-transformers/all-MiniLM-L6-v2
+
+Characteristics:
+
+- small (~90MB)
+- fast CPU inference
+- excellent semantic similarity performance
+
+Procedure:
+
+1. Compute embedding for the user answer.
+2. Compare against embeddings for canonical answer variants.
+3. Use cosine similarity.
+
+similarity = max cosine similarity across all variants.
+
+Thresholds:
+
+similarity ≥ 0.85 → correct  
+similarity ≤ 0.60 → incorrect  
+0.60 < similarity < 0.85 → escalate to Tier 3
+
+---
+
+## Canonical Answer Variants
+
+To improve embedding reliability, each card may store multiple acceptable answer variants.
+
+Example:
+
+canonicalVariants = [
+"Mitochondria produce ATP",
+"Mitochondria make ATP",
+"ATP is produced by mitochondria",
+"The mitochondria generate ATP"
+]
+
+When grading, the maximum similarity against all variants is used.
+
+Variants may originate from:
+
+- automated generation during card creation
+- manually added aliases
+- user feedback when correct answers are rejected
+
+This technique significantly improves grading accuracy without requiring an LLM.
+
+---
+
+## Tier 3: Local LLM Adjudication
+
+Used only when similarity falls in a borderline range.
+
+Recommended models:
+
+- Qwen 2.5 (≈3B)
+- Gemma 3 (1B–4B)
+
+Run locally using Ollama or llama.cpp.
+
+Example prompt:
+
+Question:
+What is the capital of France?
+
+Correct answer:
+Paris
+
+User answer:
+The capital is Paris.
+
+Is the user answer correct, partially correct, or incorrect?
+
+Respond with JSON:
+
+{ "grade": "correct | partial | incorrect" }
+
+Expected usage rate: <5% of answers.
+
+---
+
+## Service Design
+
+A grading service will be added to the API layer.
+
+Location:
+
+apps/api/src/services/answerGrader.ts
+
+Responsibilities:
+
+- answer normalization
+- alias matching
+- embedding similarity scoring
+- optional LLM adjudication
+
+Example interface:
+
+gradeAnswer({
+question,
+canonicalVariants,
+userAnswer
+}) → {
+result: "correct" | "incorrect" | "partial",
+confidence: number
+}
+
+---
+
+## Data Model Additions
+
+Cards may include:
+
+canonicalAnswer
+canonicalVariants[]
+acceptedAliases[]
+embeddingVectors[]
+
+Embeddings for canonical answers may be precomputed when cards are created.
+
+---
+
+## Implementation Phases
+
+Phase 1 — Deterministic Improvements  
+Phase 2 — Embedding Similarity  
+Phase 3 — LLM Fallback
+
+---
+
+## Cost Profile
+
+Typical evaluation cost:
+
+Deterministic checks → negligible  
+Embedding similarity → ~1–5 ms  
+LLM fallback → ~200–800 ms
+
+Because the LLM is used rarely, the overall system remains fast and inexpensive.
+
+---
+
+## Future Extensions
+
+Possible enhancements:
+
+- adaptive similarity thresholds per deck
+- answer variant expansion from user feedback
+- logging and analysis of borderline cases
+- optional fine-tuned grading models

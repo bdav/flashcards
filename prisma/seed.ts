@@ -3,9 +3,10 @@ import { prisma } from '../apps/api/src/db.js';
 async function main() {
   // Create or find the default dev user
   const user = await prisma.user.upsert({
-    where: { email: 'dev@example.com' },
+    where: { id: 'seed-user-dev' },
     update: {},
     create: {
+      id: 'seed-user-dev',
       email: 'dev@example.com',
       passwordHash: 'placeholder-hash',
     },
