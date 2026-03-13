@@ -1,19 +1,24 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ChevronRight } from 'lucide-react';
+
+type Card = { id: string; front: string; back: string };
 
 type StudyState =
   | { phase: 'idle' }
-  | { phase: 'answering'; cardIndex: number }
+  | { phase: 'answering' }
   | {
       phase: 'result';
-      cardIndex: number;
       result: 'correct' | 'incorrect';
       userAnswer: string;
     }
   | { phase: 'complete' };
+
+const answerInputClasses =
+  'h-auto flex-1 rounded-none border-0 border-b-2 border-border py-2 text-center text-3xl font-bold uppercase tracking-wide shadow-none focus-visible:ring-0 md:text-3xl';
 
 export default function StudyPage() {
   const { deckId } = useParams<{ deckId: string }>();
@@ -23,6 +28,8 @@ export default function StudyPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [answerInput, setAnswerInput] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [studyQueue, setStudyQueue] = useState<Card[]>([]);
+  const [cardsStudied, setCardsStudied] = useState(0);
 
   const deckQuery = trpc.deck.getById.useQuery(
     { id: deckId ?? '' },
@@ -34,7 +41,9 @@ export default function StudyPage() {
       setError(null);
       setSessionId(session.id);
       setAnswerInput('');
-      setStudyState({ phase: 'answering', cardIndex: 0 });
+      setStudyQueue([...cards]);
+      setCardsStudied(0);
+      setStudyState({ phase: 'answering' });
     },
     onError: () => {
       setError('Failed to start study session. Please try again.');
@@ -58,7 +67,7 @@ export default function StudyPage() {
 
     try {
       setError(null);
-      const card = cards[studyState.cardIndex];
+      const card = studyQueue[0];
       const attempt = await submitAttempt.mutateAsync({
         studySessionId: sessionId,
         cardId: card.id,
@@ -67,7 +76,6 @@ export default function StudyPage() {
 
       setStudyState({
         phase: 'result',
-        cardIndex: studyState.cardIndex,
         result: attempt.result,
         userAnswer: answerInput,
       });
@@ -76,11 +84,20 @@ export default function StudyPage() {
     }
   }
 
-  async function handleNext() {
+  const handleNext = useCallback(async () => {
     if (studyState.phase !== 'result' || !sessionId) return;
 
-    const nextIndex = studyState.cardIndex + 1;
-    if (nextIndex >= cards.length) {
+    const currentCard = studyQueue[0];
+    const remaining = studyQueue.slice(1);
+
+    // Re-queue incorrect cards to the back
+    if (studyState.result === 'incorrect') {
+      remaining.push(currentCard);
+    }
+
+    setCardsStudied((prev) => prev + 1);
+
+    if (remaining.length === 0) {
       try {
         await finishSession.mutateAsync({ id: sessionId });
       } catch (err) {
@@ -88,10 +105,20 @@ export default function StudyPage() {
       }
       setStudyState({ phase: 'complete' });
     } else {
+      setStudyQueue(remaining);
       setAnswerInput('');
-      setStudyState({ phase: 'answering', cardIndex: nextIndex });
+      setStudyState({ phase: 'answering' });
     }
-  }
+  }, [studyState, sessionId, studyQueue, finishSession]);
+
+  useEffect(() => {
+    if (studyState.phase !== 'result') return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Enter') handleNext();
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [studyState.phase, handleNext]);
 
   if (deckQuery.isLoading) {
     return <p>Loading deck...</p>;
@@ -140,48 +167,29 @@ export default function StudyPage() {
     );
   }
 
-  const { cardIndex } = studyState;
-  const currentCard = cards[cardIndex];
+  const currentCard = studyQueue[0];
 
   return (
-    <main className="p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{deck.name}</h1>
+    <main className="flex min-h-screen flex-col items-center px-4 py-8">
+      <div className="mb-4 flex w-full max-w-md items-center justify-between">
+        <h1 className="text-lg font-bold">{deck.name}</h1>
         <span className="text-muted-foreground">
-          {cardIndex + 1} of {cards.length}
+          {cardsStudied + 1} of {cardsStudied + studyQueue.length}
         </span>
       </div>
 
       {error && <p className="mb-4 text-destructive">{error}</p>}
 
-      <div className="rounded-lg border p-6">
-        <p className="text-lg font-medium">{currentCard.front}</p>
-
+      <div className="flex aspect-3/2 w-full max-w-md flex-col items-center justify-center rounded-xl border-2 bg-white p-8 shadow-md">
         {studyState.phase === 'answering' && (
-          <form
-            className="mt-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSubmitAnswer();
-            }}
-          >
-            <Input
-              type="text"
-              placeholder="Type your answer..."
-              value={answerInput}
-              onChange={(e) => setAnswerInput(e.target.value)}
-              autoFocus
-            />
-            <Button type="submit" className="mt-2">
-              Submit
-            </Button>
-          </form>
+          <p className="text-center text-3xl font-bold uppercase tracking-wide">
+            {currentCard.front}
+          </p>
         )}
-
         {studyState.phase === 'result' && (
-          <div className="mt-4">
+          <div className="text-center" data-testid="correct-answer">
             <p
-              className={`text-lg font-semibold ${
+              className={`mb-4 text-lg font-semibold ${
                 studyState.result === 'correct'
                   ? 'text-green-600'
                   : 'text-red-600'
@@ -190,16 +198,62 @@ export default function StudyPage() {
             >
               {studyState.result === 'correct' ? 'Correct!' : 'Incorrect'}
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Your answer: {studyState.userAnswer}
+            <p className="text-sm uppercase tracking-wide text-muted-foreground">
+              {currentCard.front}
             </p>
-            <p className="mt-1 text-lg" data-testid="correct-answer">
-              Answer: {currentCard.back}
+            <p className="mt-2 text-3xl font-bold uppercase tracking-wide">
+              {currentCard.back}
             </p>
-            <Button className="mt-4" onClick={handleNext}>
-              Next
-            </Button>
           </div>
+        )}
+      </div>
+
+      <div className="relative mt-6 w-full max-w-md">
+        {studyState.phase === 'answering' && (
+          <form
+            className="w-full"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmitAnswer();
+            }}
+          >
+            <Input
+              type="text"
+              value={answerInput}
+              onChange={(e) => setAnswerInput(e.target.value)}
+              autoFocus
+              className={answerInputClasses}
+            />
+            <Button
+              type="submit"
+              variant="ghost"
+              size="icon"
+              aria-label="Submit"
+              className="absolute -right-12 top-0"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </form>
+        )}
+
+        {studyState.phase === 'result' && (
+          <>
+            <Input
+              type="text"
+              value={studyState.userAnswer}
+              readOnly
+              className={answerInputClasses}
+            />
+            <Button
+              onClick={handleNext}
+              variant="ghost"
+              size="icon"
+              aria-label="Next"
+              className="absolute -right-12 top-0"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </>
         )}
       </div>
     </main>

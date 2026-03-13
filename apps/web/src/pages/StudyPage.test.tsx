@@ -65,7 +65,7 @@ function renderStudyPage(deckId = 'deck-1') {
   );
 }
 
-function setupMocksWithStartSession() {
+function setupMocksWithStartSession(resultOverride?: 'correct' | 'incorrect') {
   vi.mocked(trpc.deck.getById.useQuery).mockReturnValue({
     data: mockDeck,
     isLoading: false,
@@ -91,7 +91,7 @@ function setupMocksWithStartSession() {
         studySessionId: args.studySessionId,
         cardId: args.cardId,
         userAnswer: args.userAnswer,
-        result: 'correct' as const,
+        result: resultOverride ?? ('correct' as const),
         createdAt: new Date(),
       });
     }),
@@ -158,58 +158,46 @@ describe('StudyPage', () => {
     await user.click(screen.getByRole('button', { name: /start studying/i }));
 
     expect(screen.getByText('What is 2+2?')).toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText(/type your answer/i),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /submit/i })).toBeInTheDocument();
     // Correct answer should not be visible yet
     expect(screen.queryByTestId('correct-answer')).not.toBeInTheDocument();
   });
 
-  it('shows correct result after submitting right answer', async () => {
+  it('shows correct result with question and answer on card', async () => {
     setupMocksWithStartSession();
     const user = userEvent.setup();
     renderStudyPage();
 
     await user.click(screen.getByRole('button', { name: /start studying/i }));
-    await user.type(screen.getByPlaceholderText(/type your answer/i), '4');
+    await user.type(screen.getByRole('textbox'), '4');
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId('result')).toHaveTextContent('Correct!');
     });
-    expect(screen.getByTestId('correct-answer')).toHaveTextContent('Answer: 4');
+    // Card shows both question and correct answer
+    const answerArea = screen.getByTestId('correct-answer');
+    expect(answerArea).toHaveTextContent('What is 2+2?');
+    expect(answerArea).toHaveTextContent('4');
     expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument();
   });
 
   it('shows incorrect result after submitting wrong answer', async () => {
-    setupMocksWithStartSession();
-    // Override submitAttempt to return incorrect
-    vi.mocked(trpc.study.submitAttempt.useMutation).mockReturnValue({
-      mutate: vi.fn(),
-      mutateAsync: vi.fn((args) => {
-        return Promise.resolve({
-          id: 'attempt-1',
-          studySessionId: args.studySessionId,
-          cardId: args.cardId,
-          userAnswer: args.userAnswer,
-          result: 'incorrect' as const,
-          createdAt: new Date(),
-        });
-      }),
-    } as unknown as ReturnType<typeof trpc.study.submitAttempt.useMutation>);
+    setupMocksWithStartSession('incorrect');
 
     const user = userEvent.setup();
     renderStudyPage();
 
     await user.click(screen.getByRole('button', { name: /start studying/i }));
-    await user.type(screen.getByPlaceholderText(/type your answer/i), '5');
+    await user.type(screen.getByRole('textbox'), '5');
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId('result')).toHaveTextContent('Incorrect');
     });
-    expect(screen.getByTestId('correct-answer')).toHaveTextContent('Answer: 4');
+    const answerArea = screen.getByTestId('correct-answer');
+    expect(answerArea).toHaveTextContent('4');
   });
 
   it('submits answer on Enter key press', async () => {
@@ -218,14 +206,32 @@ describe('StudyPage', () => {
     renderStudyPage();
 
     await user.click(screen.getByRole('button', { name: /start studying/i }));
-    await user.type(
-      screen.getByPlaceholderText(/type your answer/i),
-      '4{Enter}',
-    );
+    await user.type(screen.getByRole('textbox'), '4{Enter}');
 
     await waitFor(() => {
       expect(screen.getByTestId('result')).toHaveTextContent('Correct!');
     });
+  });
+
+  it('advances to next card on Enter key during result phase', async () => {
+    setupMocksWithStartSession();
+    const user = userEvent.setup();
+    renderStudyPage();
+
+    await user.click(screen.getByRole('button', { name: /start studying/i }));
+    await user.type(screen.getByRole('textbox'), '4');
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('result')).toHaveTextContent('Correct!');
+    });
+
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByText('Capital of France?')).toBeInTheDocument();
+    });
+    expect(screen.getByText('2 of 2')).toBeInTheDocument();
   });
 
   it('shows progress indicator during study', async () => {
@@ -244,7 +250,7 @@ describe('StudyPage', () => {
     renderStudyPage();
 
     await user.click(screen.getByRole('button', { name: /start studying/i }));
-    await user.type(screen.getByPlaceholderText(/type your answer/i), '4');
+    await user.type(screen.getByRole('textbox'), '4');
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
     await waitFor(() => {
@@ -256,9 +262,41 @@ describe('StudyPage', () => {
       expect(screen.getByText('Capital of France?')).toBeInTheDocument();
     });
     expect(screen.getByText('2 of 2')).toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText(/type your answer/i),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
+  });
+
+  it('re-queues incorrect cards to the back of the deck', async () => {
+    setupMocksWithStartSession('incorrect');
+    const user = userEvent.setup();
+    renderStudyPage();
+
+    await user.click(screen.getByRole('button', { name: /start studying/i }));
+
+    // Answer first card incorrectly
+    await user.type(screen.getByRole('textbox'), 'wrong');
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('result')).toHaveTextContent('Incorrect');
+    });
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    // Should advance to second card
+    await waitFor(() => {
+      expect(screen.getByText('Capital of France?')).toBeInTheDocument();
+    });
+
+    // Answer second card incorrectly
+    await user.type(screen.getByRole('textbox'), 'wrong');
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('result')).toHaveTextContent('Incorrect');
+    });
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    // First card should reappear (it was re-queued)
+    await waitFor(() => {
+      expect(screen.getByText('What is 2+2?')).toBeInTheDocument();
+    });
   });
 
   it('shows session complete after answering all cards', async () => {
@@ -268,7 +306,7 @@ describe('StudyPage', () => {
 
     // Card 1
     await user.click(screen.getByRole('button', { name: /start studying/i }));
-    await user.type(screen.getByPlaceholderText(/type your answer/i), '4');
+    await user.type(screen.getByRole('textbox'), '4');
     await user.click(screen.getByRole('button', { name: /submit/i }));
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument();
@@ -279,7 +317,7 @@ describe('StudyPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Capital of France?')).toBeInTheDocument();
     });
-    await user.type(screen.getByPlaceholderText(/type your answer/i), 'Paris');
+    await user.type(screen.getByRole('textbox'), 'Paris');
     await user.click(screen.getByRole('button', { name: /submit/i }));
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument();
