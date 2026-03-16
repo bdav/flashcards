@@ -3,6 +3,14 @@ import { trpc } from '@/lib/trpc';
 import { CenteredPage } from '@/components/CenteredPage';
 import { DeckHeader } from '@/components/DeckHeader';
 import { StatCard } from '@/components/StatCard';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { formatPercent } from '@/lib/format';
 
 export default function DeckStatsPage() {
@@ -79,23 +87,32 @@ export default function DeckStatsPage() {
         {stats.cardStats.length > 0 && (
           <div className="mt-8">
             <h2 className="text-lg font-semibold">Per-Card Breakdown</h2>
-            <div className="mt-3 space-y-2">
-              {stats.cardStats.map((card) => (
-                <div
-                  key={card.cardId}
-                  className="flex items-center justify-between rounded-md border px-4 py-3"
-                >
-                  <span className="text-sm text-muted-foreground">
-                    {card.totalAttempts} attempts
-                  </span>
-                  <span className="text-sm font-medium">
-                    {card.avgAttemptsToCorrect !== null
-                      ? card.avgAttemptsToCorrect.toFixed(1)
-                      : '—'}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <Table className="mt-3">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Question</TableHead>
+                  <TableHead className="text-right">Attempts</TableHead>
+                  <TableHead className="text-right">Avg. to Correct</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stats.cardStats.map((card) => (
+                  <TableRow key={card.cardId}>
+                    <TableCell className="py-4 font-medium">
+                      {card.front}
+                    </TableCell>
+                    <TableCell className="py-4 text-right text-muted-foreground">
+                      {card.totalAttempts}
+                    </TableCell>
+                    <TableCell className="py-4 text-right font-medium">
+                      {card.avgAttemptsToCorrect !== null
+                        ? card.avgAttemptsToCorrect.toFixed(1)
+                        : '—'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>

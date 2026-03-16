@@ -186,6 +186,25 @@ describe('statsRouter', () => {
       expect(card1Stats.avgAttemptsToCorrect).toBe(3);
     });
 
+    it('includes card front text in cardStats', async () => {
+      const caller = createCaller();
+      const session = await caller.study.startSession({ deckId });
+
+      await caller.study.submitAttempt({
+        studySessionId: session.id,
+        cardId: cardIds[0],
+        userAnswer: 'Paris',
+      });
+      await caller.study.finishSession({ id: session.id });
+
+      const stats = await caller.stats.deckStats({ deckId });
+
+      const card0Stats = stats.cardStats.find(
+        (c: { cardId: string }) => c.cardId === cardIds[0],
+      );
+      expect(card0Stats.front).toBe('Capital of France');
+    });
+
     it('returns null avgAttemptsToCorrect for cards never answered correctly', async () => {
       const caller = createCaller();
       const session = await caller.study.startSession({ deckId });

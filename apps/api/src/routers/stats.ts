@@ -138,12 +138,26 @@ export const statsRouter = router({
       const { perCard, firstTryAccuracy, uniqueCardsStudied } =
         computePerCardStats(attempts);
 
+      // Fetch card front text for the per-card breakdown
+      const cardIds = perCard.map((c) => c.cardId);
+      const cards =
+        cardIds.length > 0
+          ? await ctx.prisma.card.findMany({
+              where: { id: { in: cardIds } },
+              select: { id: true, front: true },
+            })
+          : [];
+      const cardMap = new Map(cards.map((c) => [c.id, c.front]));
+
       return {
         totalAttempts,
         uniqueCardsStudied,
         firstTryAccuracy,
         overallAccuracy,
-        cardStats: perCard,
+        cardStats: perCard.map((c) => ({
+          ...c,
+          front: cardMap.get(c.cardId) ?? '',
+        })),
       };
     }),
 
