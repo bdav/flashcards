@@ -332,6 +332,120 @@ describe('StudyPage', () => {
     expect(screen.getByText(/you studied all 2 cards/i)).toBeInTheDocument();
   });
 
+  it('shows session summary with correct/incorrect counts on complete', async () => {
+    // First card correct, second card incorrect
+    let callCount = 0;
+    vi.mocked(trpc.deck.getById.useQuery).mockReturnValue({
+      data: mockDeck,
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof trpc.deck.getById.useQuery>);
+
+    vi.mocked(trpc.study.startSession.useMutation).mockImplementation(
+      (opts?: { onSuccess?: (data: { id: string }) => void }) => {
+        return {
+          mutate: vi.fn(() => {
+            opts?.onSuccess?.({ id: 'session-1' });
+          }),
+          mutateAsync: vi.fn(),
+        } as unknown as ReturnType<typeof trpc.study.startSession.useMutation>;
+      },
+    );
+
+    vi.mocked(trpc.study.submitAttempt.useMutation).mockReturnValue({
+      mutate: vi.fn(),
+      mutateAsync: vi.fn((args) => {
+        callCount++;
+        return Promise.resolve({
+          id: `attempt-${callCount}`,
+          studySessionId: args.studySessionId,
+          cardId: args.cardId,
+          userAnswer: args.userAnswer,
+          result:
+            callCount === 1 ? ('correct' as const) : ('incorrect' as const),
+          createdAt: new Date(),
+        });
+      }),
+    } as unknown as ReturnType<typeof trpc.study.submitAttempt.useMutation>);
+
+    vi.mocked(trpc.study.finishSession.useMutation).mockReturnValue({
+      mutate: vi.fn(),
+      mutateAsync: vi.fn((args) => {
+        return Promise.resolve({
+          id: args.id,
+          endedAt: new Date(),
+          userId: 'user-1',
+          deckId: 'deck-1',
+          startedAt: new Date(),
+        });
+      }),
+    } as unknown as ReturnType<typeof trpc.study.finishSession.useMutation>);
+
+    const user = userEvent.setup();
+    renderStudyPage();
+
+    // Card 1 — correct
+    await user.click(screen.getByRole('button', { name: /start studying/i }));
+    await user.type(screen.getByRole('textbox'), '4');
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    // Card 2 — incorrect (but re-queued cards won't show since we need to finish)
+    await waitFor(() => {
+      expect(screen.getByText('Capital of France?')).toBeInTheDocument();
+    });
+    await user.type(screen.getByRole('textbox'), 'London');
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument();
+    });
+
+    // Card 2 is incorrect so it gets re-queued — answer the re-queued card correctly
+    vi.mocked(trpc.study.submitAttempt.useMutation).mockReturnValue({
+      mutate: vi.fn(),
+      mutateAsync: vi.fn((args) => {
+        return Promise.resolve({
+          id: 'attempt-3',
+          studySessionId: args.studySessionId,
+          cardId: args.cardId,
+          userAnswer: args.userAnswer,
+          result: 'correct' as const,
+          createdAt: new Date(),
+        });
+      }),
+    } as unknown as ReturnType<typeof trpc.study.submitAttempt.useMutation>);
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    // Re-queued card appears
+    await waitFor(() => {
+      expect(screen.getByText('Capital of France?')).toBeInTheDocument();
+    });
+    await user.type(screen.getByRole('textbox'), 'Paris');
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    // Session complete — should show summary
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /session complete/i }),
+      ).toBeInTheDocument();
+    });
+
+    // Shows per-attempt counts
+    expect(screen.getByText(/2.*correct/i)).toBeInTheDocument();
+    expect(screen.getByText(/1.*incorrect/i)).toBeInTheDocument();
+    // Shows first-try accuracy (1 of 2 cards correct on first try = 50%)
+    expect(screen.getByText(/first-try accuracy/i)).toBeInTheDocument();
+    expect(screen.getByText(/50%/)).toBeInTheDocument();
+  });
+
   it('does not submit when answer is empty', async () => {
     setupMocksWithStartSession();
     const user = userEvent.setup();

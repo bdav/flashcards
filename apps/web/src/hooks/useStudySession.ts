@@ -190,6 +190,7 @@ export function useStudySession(
     answerInput,
     setAnswerInput,
     error,
+    history,
     handleStart,
     handleSubmitAnswer,
     handleNext,

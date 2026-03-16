@@ -8,6 +8,7 @@ import { CenteredPage } from '@/components/CenteredPage';
 import { useCardQueue } from '@/hooks/useCardQueue';
 import { useStudySession } from '@/hooks/useStudySession';
 import { DeckHeader } from '@/components/DeckHeader';
+import { formatPercent } from '@/lib/format';
 
 const answerInputClasses =
   'h-auto flex-1 rounded-none border-0 border-b-2 border-border py-2 text-center text-3xl font-bold uppercase tracking-wide shadow-none focus-visible:ring-0 md:text-3xl text-soft-foreground';
@@ -32,6 +33,7 @@ export default function StudyPage() {
     answerInput,
     setAnswerInput,
     error,
+    history,
     handleStart,
     handleSubmitAnswer,
     handleNext,
@@ -95,6 +97,26 @@ export default function StudyPage() {
   }
 
   if (studyState.phase === 'complete') {
+    const correctCount = history.filter((h) => h.result === 'correct').length;
+    const incorrectCount = history.filter(
+      (h) => h.result === 'incorrect',
+    ).length;
+
+    // First-try accuracy: for each unique card, check if the first attempt was correct
+    const firstAttemptByCard = new Map<string, 'correct' | 'incorrect'>();
+    for (const entry of history) {
+      if (!firstAttemptByCard.has(entry.card.id)) {
+        firstAttemptByCard.set(entry.card.id, entry.result);
+      }
+    }
+    const firstTryCorrect = [...firstAttemptByCard.values()].filter(
+      (r) => r === 'correct',
+    ).length;
+    const firstTryAccuracy =
+      firstAttemptByCard.size > 0
+        ? firstTryCorrect / firstAttemptByCard.size
+        : 0;
+
     return (
       <CenteredPage>
         <DeckHeader
@@ -106,6 +128,17 @@ export default function StudyPage() {
           <h2 className="text-2xl font-bold">Session complete!</h2>
           <p className="mt-2 text-muted-foreground">
             You studied all {cards.length} cards.
+          </p>
+          <div className="mt-4 flex gap-6 text-lg">
+            <span className="font-semibold text-green-600">
+              {correctCount} correct
+            </span>
+            <span className="font-semibold text-red-600">
+              {incorrectCount} incorrect
+            </span>
+          </div>
+          <p className="mt-2 text-muted-foreground">
+            First-try accuracy: {formatPercent(firstTryAccuracy)}
           </p>
           <Button className="mt-6" onClick={handleStart}>
             Study again
