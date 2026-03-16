@@ -17,9 +17,14 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">
             {deckQuery.data.cards.length} cards
           </p>
-          <Button className="mt-2" asChild>
-            <Link to={`/decks/${SEED_DECK_ID}/study`}>Study</Link>
-          </Button>
+          <div className="mt-2 flex gap-2">
+            <Button asChild>
+              <Link to={`/decks/${SEED_DECK_ID}/study`}>Study</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/stats">Stats</Link>
+            </Button>
+          </div>
         </div>
       )}
     </main>
