@@ -140,7 +140,7 @@ export default function StudyPage() {
       <div className="flex w-full flex-1 flex-col items-center justify-center">
         <div className="relative w-full max-w-md">
           <CardStack
-            queueLength={isReviewing ? 1 : cardQueue.queue.length}
+            queueLength={cardQueue.queue.length}
             progress={
               isReviewing
                 ? undefined

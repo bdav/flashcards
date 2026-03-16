@@ -1,6 +1,7 @@
 import { trpc } from '@/lib/trpc';
 import { CenteredPage } from '@/components/CenteredPage';
 import { StatCard } from '@/components/StatCard';
+import { Card, CardContent } from '@/components/ui/card';
 import { formatPercent } from '@/lib/format';
 
 export default function StatsPage() {
@@ -65,15 +66,14 @@ export default function StatsPage() {
             </p>
             <div className="mt-3 space-y-2">
               {stats.weakCards.map((card) => (
-                <div
-                  key={card.cardId}
-                  className="flex items-center justify-between rounded-md border px-4 py-3"
-                >
-                  <span className="text-sm">{card.front}</span>
-                  <span className="text-sm font-medium text-muted-foreground">
-                    {card.avgAttemptsToCorrect.toFixed(1)}
-                  </span>
-                </div>
+                <Card key={card.cardId} size="sm">
+                  <CardContent className="flex items-center justify-between">
+                    <span className="text-sm">{card.front}</span>
+                    <span className="text-sm font-medium text-muted-foreground">
+                      {card.avgAttemptsToCorrect.toFixed(1)}
+                    </span>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           </div>

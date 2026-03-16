@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
 import { CenteredPage } from '@/components/CenteredPage';
 import { formatPercent } from '@/lib/format';
 
@@ -68,32 +69,30 @@ export default function DeckListPage() {
         ) : (
           <div className="mt-6 space-y-3">
             {decks.map((deck) => (
-              <Link
-                key={deck.id}
-                to={`/decks/${deck.id}`}
-                className="block rounded-md border px-4 py-3 transition-colors hover:bg-accent"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold">{deck.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {deck.cardCount} cards
-                    </p>
-                  </div>
-                  <div className="text-right text-sm text-muted-foreground">
-                    {deck.totalAttempts > 0 && (
-                      <p className="font-medium">
-                        {formatPercent(deck.accuracy)}
+              <Link key={deck.id} to={`/decks/${deck.id}`} className="block">
+                <Card size="sm" className="transition-colors hover:bg-accent">
+                  <CardContent className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold">{deck.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {deck.cardCount} cards
                       </p>
-                    )}
-                    {deck.lastStudied && (
-                      <p>
-                        Last studied{' '}
-                        {new Date(deck.lastStudied).toLocaleDateString()}
-                      </p>
-                    )}
-                  </div>
-                </div>
+                    </div>
+                    <div className="text-right text-sm text-muted-foreground">
+                      {deck.totalAttempts > 0 && (
+                        <p className="font-medium">
+                          {formatPercent(deck.accuracy)}
+                        </p>
+                      )}
+                      {deck.lastStudied && (
+                        <p>
+                          Last studied{' '}
+                          {new Date(deck.lastStudied).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
               </Link>
             ))}
           </div>

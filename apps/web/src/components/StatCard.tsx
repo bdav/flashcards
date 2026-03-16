@@ -1,8 +1,12 @@
+import { Card, CardContent } from '@/components/ui/card';
+
 export function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-gray-400 px-4 py-3 text-center">
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-    </div>
+    <Card size="sm">
+      <CardContent className="text-center">
+        <p className="text-2xl font-bold">{value}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
+      </CardContent>
+    </Card>
   );
 }
