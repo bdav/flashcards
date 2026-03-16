@@ -26,6 +26,10 @@ export default function StatsPage() {
 
   const stats = statsQuery.data;
 
+  if (!stats) {
+    return null;
+  }
+
   if (stats.totalAttempts === 0) {
     return (
       <CenteredPage centered>
