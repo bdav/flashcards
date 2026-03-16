@@ -1035,38 +1035,57 @@ add `attemptNumber` tracking, and build stats aggregation queries.
 
 ---
 
-### PR 10: Nav Redesign + Deck List + Deck Stats — Frontend
+### PR 10a: Deck List + Route Restructure + Deck Stats — Frontend
 
-**Scope:** Restructure navigation around decks. The deck list becomes the home page.
-Studying a deck and viewing deck stats are sibling routes under `/decks/:deckId`.
-Add persistent top nav bar.
+**Scope:** Replace the dashboard with a deck list home page. Restructure routes so studying
+a deck and viewing deck stats are sibling routes under `/decks/:deckId`. Add create deck form.
 
 **Tasks:**
 
-- add persistent top nav bar (Home + Stats links) visible on all pages
 - replace the dashboard page with a deck list at `/` showing decks with summary stats
-  (accuracy, weak card count, last studied) to guide the user toward their weakest deck
+  (accuracy, card count, last studied) to guide the user toward their weakest deck
 - move study page route from `/decks/:deckId/study` to `/decks/:deckId`
 - create deck stats page at `/decks/:deckId/stats` using existing `statsRouter.deckStats`
-- add study/stats toggle within the deck view (uses route navigation, not UI state)
-- add create deck form/modal
+- add create deck form
 - wire TanStack Query to deck procedures
 
 **Tests:**
 
 - deck list renders decks with summary stats
 - empty state shows when no decks exist
-- study/stats toggle navigates between routes
-- top nav links are present and functional
+- deck stats page renders per-deck stats
+- create deck form calls mutation
 
 **Definition of Done:**
 
 - deck list is the home page with per-deck stats guiding deck selection
 - user can create a deck and see it in the list
 - clicking a deck goes to study view at `/decks/:deckId`
-- user can toggle to deck stats at `/decks/:deckId/stats` and back
-- browser back button works between study and stats views
+- user can view deck stats at `/decks/:deckId/stats`
+
+---
+
+### PR 10b: Persistent Nav Bar — Frontend
+
+**Scope:** Add a persistent top nav bar visible on all pages. Add study/stats toggle
+within deck views. Replace the current floating home button in Layout.
+
+**Tasks:**
+
+- add persistent top nav bar (Home + Stats links) visible on all pages
+- add study/stats toggle within the deck view (uses route navigation, not UI state)
+- replace the existing Layout floating home button with the nav bar
+
+**Tests:**
+
+- top nav links are present and functional
+- study/stats toggle navigates between routes
+
+**Definition of Done:**
+
 - top nav with Home and Stats is always visible
+- user can toggle between study and stats views for a deck
+- browser back button works between study and stats views
 
 ---
 

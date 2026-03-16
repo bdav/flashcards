@@ -1,0 +1,177 @@
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import DeckListPage from './DeckListPage';
+import { trpc } from '@/lib/trpc';
+
+vi.mock('@/lib/trpc', () => ({
+  trpc: {
+    useUtils: vi.fn(() => ({
+      deck: { list: { invalidate: vi.fn() } },
+    })),
+    deck: {
+      list: { useQuery: vi.fn() },
+      create: { useMutation: vi.fn() },
+    },
+  },
+}));
+
+const mockDecks = [
+  {
+    id: 'deck-1',
+    name: 'World Capitals',
+    description: 'Test your geography',
+    cardCount: 10,
+    totalAttempts: 50,
+    accuracy: 0.8,
+    lastStudied: '2026-03-15T12:00:00.000Z',
+    createdAt: '2026-03-01T00:00:00.000Z',
+    updatedAt: '2026-03-15T12:00:00.000Z',
+    userId: 'user-1',
+  },
+  {
+    id: 'deck-2',
+    name: 'Math Facts',
+    description: null,
+    cardCount: 5,
+    totalAttempts: 0,
+    accuracy: 0,
+    lastStudied: null,
+    createdAt: '2026-03-10T00:00:00.000Z',
+    updatedAt: '2026-03-10T00:00:00.000Z',
+    userId: 'user-1',
+  },
+];
+
+function renderDeckListPage() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/']}>
+        <DeckListPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+function setupMocks(
+  overrides?: Partial<ReturnType<typeof trpc.deck.list.useQuery>>,
+) {
+  vi.mocked(trpc.deck.list.useQuery).mockReturnValue({
+    data: mockDecks,
+    isLoading: false,
+    isError: false,
+    ...overrides,
+  } as ReturnType<typeof trpc.deck.list.useQuery>);
+
+  vi.mocked(trpc.deck.create.useMutation).mockReturnValue({
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    isPending: false,
+  } as unknown as ReturnType<typeof trpc.deck.create.useMutation>);
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe('DeckListPage', () => {
+  it('renders deck list with names and card counts', () => {
+    setupMocks();
+    renderDeckListPage();
+
+    expect(screen.getByText('World Capitals')).toBeInTheDocument();
+    expect(screen.getByText('Math Facts')).toBeInTheDocument();
+    expect(screen.getByText(/10 cards/)).toBeInTheDocument();
+    expect(screen.getByText(/5 cards/)).toBeInTheDocument();
+  });
+
+  it('renders deck summary stats (accuracy and last studied)', () => {
+    setupMocks();
+    renderDeckListPage();
+
+    expect(screen.getByText('80%')).toBeInTheDocument();
+  });
+
+  it('renders links to study each deck', () => {
+    setupMocks();
+    renderDeckListPage();
+
+    const links = screen.getAllByRole('link');
+    const deckLinks = links.filter(
+      (link) =>
+        link.getAttribute('href') === '/decks/deck-1' ||
+        link.getAttribute('href') === '/decks/deck-2',
+    );
+    expect(deckLinks).toHaveLength(2);
+  });
+
+  it('renders empty state when no decks exist', () => {
+    setupMocks({ data: [] });
+    renderDeckListPage();
+
+    expect(screen.getByText(/no decks yet/i)).toBeInTheDocument();
+  });
+
+  it('shows loading state', () => {
+    setupMocks({ data: undefined, isLoading: true });
+    renderDeckListPage();
+
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+  });
+
+  it('shows error state', () => {
+    setupMocks({ data: undefined, isError: true });
+    renderDeckListPage();
+
+    expect(screen.getByText(/error/i)).toBeInTheDocument();
+  });
+
+  it('shows create deck form', () => {
+    setupMocks();
+    renderDeckListPage();
+
+    expect(screen.getByPlaceholderText(/deck name/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument();
+  });
+
+  it('calls create mutation when form is submitted', async () => {
+    setupMocks();
+    const mockMutate = vi.fn();
+    vi.mocked(trpc.deck.create.useMutation).mockReturnValue({
+      mutate: mockMutate,
+      mutateAsync: vi.fn(),
+      isPending: false,
+    } as unknown as ReturnType<typeof trpc.deck.create.useMutation>);
+
+    const user = userEvent.setup();
+    renderDeckListPage();
+
+    await user.type(screen.getByPlaceholderText(/deck name/i), 'New Deck');
+    await user.click(screen.getByRole('button', { name: /create/i }));
+
+    expect(mockMutate).toHaveBeenCalledWith({ name: 'New Deck' });
+  });
+
+  it('does not submit create form with empty name', async () => {
+    setupMocks();
+    const mockMutate = vi.fn();
+    vi.mocked(trpc.deck.create.useMutation).mockReturnValue({
+      mutate: mockMutate,
+      mutateAsync: vi.fn(),
+      isPending: false,
+    } as unknown as ReturnType<typeof trpc.deck.create.useMutation>);
+
+    const user = userEvent.setup();
+    renderDeckListPage();
+
+    await user.click(screen.getByRole('button', { name: /create/i }));
+
+    expect(mockMutate).not.toHaveBeenCalled();
+  });
+});

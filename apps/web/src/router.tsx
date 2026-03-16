@@ -1,20 +1,25 @@
 import { createBrowserRouter } from 'react-router-dom';
-import DashboardPage from './pages/DashboardPage';
+import DeckListPage from './pages/DeckListPage';
 import StudyPage from './pages/StudyPage';
 import StatsPage from './pages/StatsPage';
+import DeckStatsPage from './pages/DeckStatsPage';
 import { Layout } from './components/Layout';
 
 export const router = createBrowserRouter([
   {
-    path: '/',
-    element: <DashboardPage />,
-  },
-  {
-    element: <Layout showHome />,
+    element: <Layout />,
     children: [
       {
-        path: '/decks/:deckId/study',
+        path: '/',
+        element: <DeckListPage />,
+      },
+      {
+        path: '/decks/:deckId',
         element: <StudyPage />,
+      },
+      {
+        path: '/decks/:deckId/stats',
+        element: <DeckStatsPage />,
       },
       {
         path: '/stats',

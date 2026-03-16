@@ -56,9 +56,9 @@ function renderStudyPage(deckId = 'deck-1') {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[`/decks/${deckId}/study`]}>
+      <MemoryRouter initialEntries={[`/decks/${deckId}`]}>
         <Routes>
-          <Route path="/decks/:deckId/study" element={<StudyPage />} />
+          <Route path="/decks/:deckId" element={<StudyPage />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,

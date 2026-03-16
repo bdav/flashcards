@@ -1,13 +1,16 @@
-import { Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { trpc } from '@/lib/trpc';
-import { Button } from '@/components/ui/button';
 import { CenteredPage } from '@/components/CenteredPage';
 import { StatCard } from '@/components/StatCard';
-import { Home } from 'lucide-react';
 import { formatPercent } from '@/lib/format';
 
-export default function StatsPage() {
-  const statsQuery = trpc.stats.overallStats.useQuery();
+export default function DeckStatsPage() {
+  const { deckId } = useParams<{ deckId: string }>();
+
+  const statsQuery = trpc.stats.deckStats.useQuery(
+    { deckId: deckId ?? '' },
+    { enabled: !!deckId },
+  );
 
   if (statsQuery.isLoading) {
     return (
@@ -27,16 +30,12 @@ export default function StatsPage() {
 
   const stats = statsQuery.data;
 
-  if (!stats) {
-    return null;
-  }
-
-  if (stats.totalAttempts === 0) {
+  if (!stats || stats.totalAttempts === 0) {
     return (
       <CenteredPage centered>
-        <h1 className="text-2xl font-bold">Stats</h1>
+        <h1 className="text-2xl font-bold">Deck Stats</h1>
         <p className="mt-2 text-muted-foreground">
-          No study data yet. Study a deck to see your stats here.
+          No study data yet. Study this deck to see stats here.
         </p>
       </CenteredPage>
     );
@@ -45,43 +44,43 @@ export default function StatsPage() {
   return (
     <CenteredPage>
       <div className="w-full max-w-2xl">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/" aria-label="Home">
-              <Home className="h-5 w-5" />
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-bold">Stats</h1>
-        </div>
+        <h1 className="text-2xl font-bold">Deck Stats</h1>
 
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard
             label="Total Attempts"
             value={String(stats.totalAttempts)}
           />
-          <StatCard label="Correct" value={String(stats.totalCorrect)} />
           <StatCard
-            label="Accuracy"
+            label="Cards Studied"
+            value={String(stats.uniqueCardsStudied)}
+          />
+          <StatCard
+            label="First-Try Accuracy"
+            value={formatPercent(stats.firstTryAccuracy)}
+          />
+          <StatCard
+            label="Overall Accuracy"
             value={formatPercent(stats.overallAccuracy)}
           />
-          <StatCard label="Decks Studied" value={String(stats.deckCount)} />
         </div>
 
-        {stats.weakCards.length > 0 && (
+        {stats.cardStats.length > 0 && (
           <div className="mt-8">
-            <h2 className="text-lg font-semibold">Needs Work</h2>
-            <p className="text-sm text-muted-foreground">
-              Cards that take multiple attempts to get right
-            </p>
+            <h2 className="text-lg font-semibold">Per-Card Breakdown</h2>
             <div className="mt-3 space-y-2">
-              {stats.weakCards.map((card) => (
+              {stats.cardStats.map((card) => (
                 <div
                   key={card.cardId}
                   className="flex items-center justify-between rounded-md border px-4 py-3"
                 >
-                  <span className="text-sm">{card.front}</span>
-                  <span className="text-sm font-medium text-muted-foreground">
-                    {card.avgAttemptsToCorrect.toFixed(1)}
+                  <span className="text-sm text-muted-foreground">
+                    {card.totalAttempts} attempts
+                  </span>
+                  <span className="text-sm font-medium">
+                    {card.avgAttemptsToCorrect !== null
+                      ? card.avgAttemptsToCorrect.toFixed(1)
+                      : '—'}
                   </span>
                 </div>
               ))}
