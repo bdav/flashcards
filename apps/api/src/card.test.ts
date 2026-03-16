@@ -94,6 +94,115 @@ describe('cardRouter', () => {
     });
   });
 
+  describe('create', () => {
+    it('creates a card with front and back on a deck', async () => {
+      const deck = await prisma.deck.create({
+        data: { name: 'Test Deck', userId },
+      });
+
+      const caller = createCaller();
+      const card = await caller.card.create({
+        deckId: deck.id,
+        front: 'What is 2+2?',
+        back: '4',
+      });
+
+      expect(card.front).toBe('What is 2+2?');
+      expect(card.back).toBe('4');
+      expect(card.deckId).toBe(deck.id);
+      expect(card.id).toBeDefined();
+    });
+
+    it('persists the card so it appears in listByDeck', async () => {
+      const deck = await prisma.deck.create({
+        data: { name: 'Test Deck', userId },
+      });
+
+      const caller = createCaller();
+      await caller.card.create({
+        deckId: deck.id,
+        front: 'Q1',
+        back: 'A1',
+      });
+
+      const cards = await caller.card.listByDeck({ deckId: deck.id });
+      expect(cards).toHaveLength(1);
+      expect(cards[0].front).toBe('Q1');
+    });
+
+    it('throws NOT_FOUND for deck owned by another user', async () => {
+      const otherDeck = await prisma.deck.create({
+        data: { name: 'Other Deck', userId: otherUserId },
+      });
+
+      const caller = createCaller();
+      await expect(
+        caller.card.create({
+          deckId: otherDeck.id,
+          front: 'Q',
+          back: 'A',
+        }),
+      ).rejects.toThrow(/not found/i);
+    });
+
+    it('throws NOT_FOUND for nonexistent deck', async () => {
+      const caller = createCaller();
+      await expect(
+        caller.card.create({
+          deckId: 'nonexistent',
+          front: 'Q',
+          back: 'A',
+        }),
+      ).rejects.toThrow(/not found/i);
+    });
+
+    it('rejects empty front', async () => {
+      const deck = await prisma.deck.create({
+        data: { name: 'Test Deck', userId },
+      });
+
+      const caller = createCaller();
+      await expect(
+        caller.card.create({
+          deckId: deck.id,
+          front: '',
+          back: 'A',
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('rejects empty back', async () => {
+      const deck = await prisma.deck.create({
+        data: { name: 'Test Deck', userId },
+      });
+
+      const caller = createCaller();
+      await expect(
+        caller.card.create({
+          deckId: deck.id,
+          front: 'Q',
+          back: '',
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('trims whitespace from front and back', async () => {
+      const deck = await prisma.deck.create({
+        data: { name: 'Test Deck', userId },
+      });
+
+      const caller = createCaller();
+      const card = await caller.card.create({
+        deckId: deck.id,
+        front: '  What is 2+2?  ',
+        back: '  4  ',
+      });
+
+      expect(card.front).toBe('What is 2+2?');
+      expect(card.back).toBe('4');
+    });
+  });
+
   describe('importCsv', () => {
     it('imports cards from valid CSV into a deck', async () => {
       const deck = await prisma.deck.create({

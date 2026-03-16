@@ -1116,27 +1116,61 @@ within deck views. Replace the current floating home button in Layout.
 
 ---
 
-### PR 12: CSV Import — Frontend
+### PR 12a: Single Card Creation — Backend
 
-**Scope:** Import page UI for uploading a CSV to a deck.
+**Scope:** Add a `card.create` procedure for adding one card at a time.
+
+**TDD Sequence — write tests first for:**
+
+1. creating a card with front and back on a deck
+2. created card is persisted and returned
+3. rejects creation on a deck owned by another user
+4. rejects creation on a nonexistent deck
+5. rejects empty front or back
 
 **Tasks:**
 
-- create import page at `/import`
-- deck selector (create new or choose existing)
-- file upload input
-- validation error display
-- success state with link to deck
-
-**Tests:**
-
-- import page shows validation errors for bad CSV
-- success state renders after import
+- add `card.create` mutation to `cardRouter` (input: deckId, front, back)
+- ownership validation (deck must belong to current user)
+- input validation (front and back must be non-empty strings)
 
 **Definition of Done:**
 
-- user can upload a CSV and see cards appear on the deck detail page
-- invalid CSVs show clear error messages
+- all card.create tests pass
+- card is persisted and retrievable via listByDeck
+
+---
+
+### PR 12b: Deck Cards View — Frontend
+
+**Scope:** New "Cards" tab within the deck view for managing cards. Replaces the
+standalone `/import` page concept. Cards are managed in context of their deck.
+
+**Tasks:**
+
+- add route `/decks/:deckId/cards` with new `DeckCardsPage`
+- add "Cards" tab to `DeckTabs` (Study | Cards | Stats)
+- add-card form at top of page (front + back inputs, Add button) wired to `card.create`
+- CSV upload section (file input + upload button) wired to `card.importCsv`
+- validation error display for both single-card and CSV flows
+- table of all cards below (front/back columns) using `card.listByDeck`
+- update StudyPage empty state: replace plain text with link to Cards tab
+
+**Tests:**
+
+- add-card form creates a card and refreshes the list
+- CSV upload imports cards and refreshes the list
+- card table renders existing cards
+- empty state renders when deck has no cards
+- StudyPage empty state links to Cards tab
+- validation errors display for bad input
+
+**Definition of Done:**
+
+- user can add cards one at a time from the Cards tab
+- user can upload a CSV from the Cards tab
+- all cards are visible in a table
+- empty deck study view directs user to the Cards tab
 
 ---
 
