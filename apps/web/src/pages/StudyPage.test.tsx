@@ -500,38 +500,16 @@ describe('StudyPage', () => {
       });
     });
 
-    it('cannot go back past the first history entry', async () => {
+    it('back button is always enabled so user can return to the title card', async () => {
       setupMocksWithStartSession();
       const user = userEvent.setup();
       renderStudyPage();
 
       await user.click(screen.getByRole('button', { name: /start studying/i }));
 
-      // Answer card 1, advance to card 2
-      await startAndAnswerCard(user, '4');
-      await advanceToNextCard(user);
-
-      // Go back to card 1 review
-      await user.click(screen.getByRole('button', { name: /previous/i }));
-      expect(screen.getByTestId('correct-answer')).toHaveTextContent(
-        'What is 2+2?',
-      );
-
-      // Back button should now be disabled — can't go further back
+      // On the first card with no history — back is still enabled (goes to title)
       const backButton = screen.getByRole('button', { name: /previous/i });
-      expect(backButton).toBeDisabled();
-    });
-
-    it('back button is disabled when there is no history', async () => {
-      setupMocksWithStartSession();
-      const user = userEvent.setup();
-      renderStudyPage();
-
-      await user.click(screen.getByRole('button', { name: /start studying/i }));
-
-      // On the first card with no history — back should be disabled
-      const backButton = screen.getByRole('button', { name: /previous/i });
-      expect(backButton).toBeDisabled();
+      expect(backButton).not.toBeDisabled();
     });
   });
 });
