@@ -1182,7 +1182,7 @@ Add persistent top nav bar.
 
 ### PR 15: Polish — Loading, Empty, and Error States
 
-**Scope:** Improve UX across all pages.
+**Scope:** Improve UX across all pages. Address known performance concerns.
 
 **Tasks:**
 
@@ -1190,6 +1190,8 @@ Add persistent top nav bar.
 - review and improve empty states (no decks, no cards, no sessions)
 - add error boundaries or error messages for failed queries
 - add toast notifications for mutations (create deck, import, etc.)
+- optimize `deck.list` accuracy computation — currently loads all attempts in JS; replace with
+  a raw aggregation query or denormalized counters as session/attempt counts grow
 
 **Definition of Done:**
 

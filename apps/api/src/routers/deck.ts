@@ -20,4 +20,136 @@ export const deckRouter = router({
 
       return deck;
     }),
+
+  list: publicProcedure.query(async ({ ctx }) => {
+    const decks = await ctx.prisma.deck.findMany({
+      where: { userId: ctx.userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: { select: { cards: true } },
+        studySessions: {
+          orderBy: { startedAt: 'desc' },
+          take: 1,
+          select: { startedAt: true },
+        },
+      },
+    });
+
+    // Fetch attempt stats per deck in a single query per deck
+    // (accuracy aggregation can be optimized further in PR 15)
+    const deckIds = decks.map((d) => d.id);
+    const attempts =
+      deckIds.length > 0
+        ? await ctx.prisma.cardAttempt.findMany({
+            where: {
+              studySession: {
+                deckId: { in: deckIds },
+                userId: ctx.userId,
+              },
+            },
+            select: {
+              result: true,
+              studySession: { select: { deckId: true } },
+            },
+          })
+        : [];
+
+    // Group attempts by deck
+    const attemptsByDeck = new Map<
+      string,
+      { total: number; correct: number }
+    >();
+    for (const attempt of attempts) {
+      const did = attempt.studySession.deckId;
+      const stats = attemptsByDeck.get(did) ?? { total: 0, correct: 0 };
+      stats.total++;
+      if (attempt.result === 'correct') stats.correct++;
+      attemptsByDeck.set(did, stats);
+    }
+
+    return decks.map((deck) => {
+      const stats = attemptsByDeck.get(deck.id) ?? { total: 0, correct: 0 };
+      const accuracy = stats.total === 0 ? 0 : stats.correct / stats.total;
+
+      return {
+        id: deck.id,
+        name: deck.name,
+        description: deck.description,
+        createdAt: deck.createdAt,
+        updatedAt: deck.updatedAt,
+        userId: deck.userId,
+        cardCount: deck._count.cards,
+        totalAttempts: stats.total,
+        accuracy,
+        lastStudied: deck.studySessions[0]?.startedAt ?? null,
+      };
+    });
+  }),
+
+  create: publicProcedure
+    .input(
+      z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.deck.create({
+        data: {
+          name: input.name,
+          description: input.description ?? null,
+          userId: ctx.userId,
+        },
+      });
+    }),
+
+  update: publicProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1).optional(),
+        description: z.string().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const deck = await ctx.prisma.deck.findUnique({
+        where: { id: input.id, userId: ctx.userId },
+      });
+
+      if (!deck) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Deck not found',
+        });
+      }
+
+      return ctx.prisma.deck.update({
+        where: { id: input.id },
+        data: {
+          ...(input.name !== undefined && { name: input.name }),
+          ...(input.description !== undefined && {
+            description: input.description,
+          }),
+        },
+      });
+    }),
+
+  delete: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const deck = await ctx.prisma.deck.findUnique({
+        where: { id: input.id, userId: ctx.userId },
+      });
+
+      if (!deck) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Deck not found',
+        });
+      }
+
+      await ctx.prisma.deck.delete({ where: { id: input.id } });
+
+      return { success: true };
+    }),
 });
