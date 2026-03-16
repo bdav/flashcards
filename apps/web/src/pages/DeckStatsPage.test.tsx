@@ -7,6 +7,9 @@ import { trpc } from '@/lib/trpc';
 
 vi.mock('@/lib/trpc', () => ({
   trpc: {
+    deck: {
+      getById: { useQuery: vi.fn() },
+    },
     stats: {
       deckStats: { useQuery: vi.fn() },
     },
@@ -32,6 +35,12 @@ function renderDeckStatsPage(deckId = 'deck-1') {
 function setupMocks(
   overrides?: Partial<ReturnType<typeof trpc.stats.deckStats.useQuery>>,
 ) {
+  vi.mocked(trpc.deck.getById.useQuery).mockReturnValue({
+    data: { id: 'deck-1', name: 'World Capitals', cards: [] },
+    isLoading: false,
+    isError: false,
+  } as ReturnType<typeof trpc.deck.getById.useQuery>);
+
   vi.mocked(trpc.stats.deckStats.useQuery).mockReturnValue({
     data: {
       totalAttempts: 30,
@@ -59,7 +68,7 @@ describe('DeckStatsPage', () => {
     renderDeckStatsPage();
 
     expect(
-      screen.getByRole('heading', { name: /deck stats/i }),
+      screen.getByRole('heading', { name: /world capitals/i }),
     ).toBeInTheDocument();
     expect(screen.getByText('30')).toBeInTheDocument();
     expect(screen.getByText('10')).toBeInTheDocument();

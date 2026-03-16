@@ -7,6 +7,7 @@ import { CardStack } from '@/components/CardStack';
 import { CenteredPage } from '@/components/CenteredPage';
 import { useCardQueue } from '@/hooks/useCardQueue';
 import { useStudySession } from '@/hooks/useStudySession';
+import { DeckHeader } from '@/components/DeckHeader';
 
 const answerInputClasses =
   'h-auto flex-1 rounded-none border-0 border-b-2 border-border py-2 text-center text-3xl font-bold uppercase tracking-wide shadow-none focus-visible:ring-0 md:text-3xl text-soft-foreground';
@@ -68,9 +69,11 @@ export default function StudyPage() {
   if (studyState.phase === 'idle') {
     return (
       <CenteredPage>
-        <h1 className="mb-4 text-3xl font-bold text-soft-foreground">
-          {deck.name}
-        </h1>
+        <DeckHeader
+          deckName={deck.name}
+          deckId={deckId ?? ''}
+          activeTab="study"
+        />
         <div className="flex w-full flex-1 flex-col items-center justify-center">
           {error && <p className="mb-2 text-destructive">{error}</p>}
           <CardStack
@@ -94,9 +97,11 @@ export default function StudyPage() {
   if (studyState.phase === 'complete') {
     return (
       <CenteredPage>
-        <h1 className="mb-4 text-center text-2xl font-bold text-soft-foreground">
-          {deck.name}
-        </h1>
+        <DeckHeader
+          deckName={deck.name}
+          deckId={deckId ?? ''}
+          activeTab="study"
+        />
         <div className="flex w-full flex-1 flex-col items-center justify-center">
           <h2 className="text-2xl font-bold">Session complete!</h2>
           <p className="mt-2 text-muted-foreground">
@@ -124,9 +129,11 @@ export default function StudyPage() {
 
   return (
     <CenteredPage>
-      <h1 className="mb-4 text-3xl font-bold text-soft-foreground">
-        {deck.name}
-      </h1>
+      <DeckHeader
+        deckName={deck.name}
+        deckId={deckId ?? ''}
+        activeTab="study"
+      />
 
       {error && <p className="mb-4 text-destructive">{error}</p>}
 

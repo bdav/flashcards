@@ -1,18 +1,25 @@
 import { useParams } from 'react-router-dom';
 import { trpc } from '@/lib/trpc';
 import { CenteredPage } from '@/components/CenteredPage';
+import { DeckHeader } from '@/components/DeckHeader';
 import { StatCard } from '@/components/StatCard';
 import { formatPercent } from '@/lib/format';
 
 export default function DeckStatsPage() {
   const { deckId } = useParams<{ deckId: string }>();
 
+  const deckQuery = trpc.deck.getById.useQuery(
+    { id: deckId ?? '' },
+    { enabled: !!deckId },
+  );
   const statsQuery = trpc.stats.deckStats.useQuery(
     { deckId: deckId ?? '' },
     { enabled: !!deckId },
   );
 
-  if (statsQuery.isLoading) {
+  const deckName = deckQuery.data?.name ?? 'Deck';
+
+  if (statsQuery.isLoading || deckQuery.isLoading) {
     return (
       <CenteredPage centered>
         <p className="text-muted-foreground">Loading stats...</p>
@@ -33,7 +40,7 @@ export default function DeckStatsPage() {
   if (!stats || stats.totalAttempts === 0) {
     return (
       <CenteredPage centered>
-        <h1 className="text-2xl font-bold">Deck Stats</h1>
+        <h1 className="text-2xl font-bold">{deckName}</h1>
         <p className="mt-2 text-muted-foreground">
           No study data yet. Study this deck to see stats here.
         </p>
@@ -43,8 +50,12 @@ export default function DeckStatsPage() {
 
   return (
     <CenteredPage>
-      <div className="w-full max-w-2xl">
-        <h1 className="text-2xl font-bold">Deck Stats</h1>
+      <div className="w-full max-w-2xl text-soft-foreground">
+        <DeckHeader
+          deckName={deckName}
+          deckId={deckId ?? ''}
+          activeTab="stats"
+        />
 
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard

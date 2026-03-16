@@ -37,7 +37,7 @@ export default function DeckListPage() {
 
   return (
     <CenteredPage>
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-2xl text-soft-foreground">
         <h1 className="text-2xl font-bold">Your Decks</h1>
 
         <form

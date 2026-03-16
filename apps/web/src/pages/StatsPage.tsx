@@ -1,9 +1,6 @@
-import { Link } from 'react-router-dom';
 import { trpc } from '@/lib/trpc';
-import { Button } from '@/components/ui/button';
 import { CenteredPage } from '@/components/CenteredPage';
 import { StatCard } from '@/components/StatCard';
-import { Home } from 'lucide-react';
 import { formatPercent } from '@/lib/format';
 
 export default function StatsPage() {
@@ -45,14 +42,7 @@ export default function StatsPage() {
   return (
     <CenteredPage>
       <div className="w-full max-w-2xl">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/" aria-label="Home">
-              <Home className="h-5 w-5" />
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-bold">Stats</h1>
-        </div>
+        <h1 className="text-2xl font-bold">Stats</h1>
 
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard
