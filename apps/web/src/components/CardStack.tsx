@@ -33,10 +33,10 @@ export function CardStack({
       }
     >
       {queueLength > 2 && (
-        <div className="absolute inset-x-2 top-0 h-4 rounded-t-xl border border-b-0 border-border bg-white shadow-sm" />
+        <div className="absolute inset-x-2 top-0 h-4 rounded-t-xl border border-b-0 border-inherit bg-white shadow-sm" />
       )}
       {queueLength > 1 && (
-        <div className="absolute inset-x-1 top-1.5 h-4 rounded-t-xl border border-b-0 border-border bg-white shadow-sm" />
+        <div className="absolute inset-x-1 top-1.5 h-4 rounded-t-xl border border-b-0 border-inherit bg-white shadow-sm" />
       )}
       <div className="relative flex aspect-3/2 w-full flex-col items-center justify-center rounded-xl border border-inherit bg-white p-8 shadow-md">
         {children}

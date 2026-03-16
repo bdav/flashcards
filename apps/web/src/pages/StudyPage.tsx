@@ -83,6 +83,9 @@ export default function StudyPage() {
             </p>
             <p className="mt-4 text-lg text-soft-foreground">Start studying</p>
           </CardStack>
+          <div className="mt-6 w-full max-w-md">
+            <div className="py-2 text-3xl">&nbsp;</div>
+          </div>
         </div>
       </CenteredPage>
     );
