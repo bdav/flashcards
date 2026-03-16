@@ -225,18 +225,21 @@ Use React Router.
 ### Initial Routes
 
 ```text
-/                  Dashboard
-/login             Login
-/signup            Signup
-/decks             Deck list
-/decks/:deckId     Deck detail
-/decks/:deckId/study
-/import            Import flow
-/stats             Stats overview
+/                       Deck list (home page)
+/login                  Login
+/signup                 Signup
+/decks/:deckId          Study view for a deck (default deck view)
+/decks/:deckId/stats    Stats view for a deck
+/import                 Import flow
+/stats                  Overall stats
 ```
 
 ### Route Structure Guidance
 
+- the deck list _is_ the home page — no separate dashboard
+- selecting a deck takes you to the study view by default
+- study and stats are sibling routes under a deck, toggled via navigation (not UI state) so the browser back button works naturally
+- a persistent top nav bar with Home and Stats links is always visible
 - public auth routes live outside the main authenticated shell
 - app routes live inside a shared authenticated layout
 - keep route count small in MVP
@@ -488,35 +491,28 @@ Use simple email/password auth with cookie sessions.
 
 Use Tailwind + shadcn/ui.
 
+### Navigation
+
+#### Top Nav Bar (always visible)
+
+- Home link (deck list)
+- Overall Stats link
+
+#### Deck-Level Navigation
+
+- when viewing a deck, toggle between Study and Stats views
+- toggle uses route navigation (`/decks/:deckId` ↔ `/decks/:deckId/stats`) so browser back button works
+
 ### Initial Pages
 
-#### Dashboard
+#### Deck List Page (`/` — home)
 
-- quick summary
-- recent decks
-- primary actions
-
-#### Deck List Page
-
-- list of decks
+- list of decks with high-level stats per deck (accuracy, cards needing work, last studied)
+- stats guide the user toward their weakest deck
 - create deck action
 - import action
 
-#### Deck Detail Page
-
-- deck title
-- card count
-- card preview/list
-- start study action
-
-#### Import Page
-
-- create or choose deck
-- upload CSV
-- validation messages
-- import success/failure state
-
-#### Study Page
+#### Deck Study View (`/decks/:deckId`)
 
 - show one card at a time (front/question only)
 - text input for typing an answer
@@ -524,12 +520,27 @@ Use Tailwind + shadcn/ui.
 - show result (correct/incorrect) with the correct answer displayed
 - next card button
 - simple progress indicator
+- toggle to switch to deck stats view
 
-#### Stats Page
+#### Deck Stats View (`/decks/:deckId/stats`)
 
-- total attempts
-- percent correct
-- per-deck summary
+- per-deck stats: total attempts, first-try accuracy, overall accuracy
+- per-card breakdown with attempts-to-correct
+- highlight weak cards needing more practice
+- toggle to switch back to study view
+
+#### Import Page (`/import`)
+
+- create or choose deck
+- upload CSV
+- validation messages
+- import success/failure state
+
+#### Overall Stats Page (`/stats`)
+
+- aggregate stats across all decks
+- per-deck summary table
+- weak cards across all decks
 
 ### UI Priorities
 
@@ -998,14 +1009,15 @@ add `attemptNumber` tracking, and build stats aggregation queries.
 
 ---
 
-### PR 9: Deck CRUD — Backend
+### PR 9: Deck CRUD + Deck Stats Endpoint — Backend
 
-**Scope:** Full deck creation, listing, update, and delete on the API side.
+**Scope:** Full deck creation, listing, update, and delete on the API side. Also add a
+`deckRouter.list` variant that returns summary stats per deck for the home page.
 
 **TDD Sequence — write tests first for:**
 
 1. creating a deck
-2. listing all decks
+2. listing all decks (with summary stats: accuracy, cards needing work, last studied)
 3. updating a deck
 4. deleting a deck
 
@@ -1013,33 +1025,48 @@ add `attemptNumber` tracking, and build stats aggregation queries.
 
 - expand `deckRouter` with list/create/update/delete procedures
   (getById already exists from PR 5)
+- `list` returns decks with lightweight summary stats (total attempts, accuracy, last studied timestamp)
+  so the deck list page can guide users toward their weakest deck
 
 **Definition of Done:**
 
 - all deck CRUD tests pass
+- deck list includes per-deck summary stats
 
 ---
 
-### PR 10: Deck CRUD — Frontend
+### PR 10: Nav Redesign + Deck List + Deck Stats — Frontend
 
-**Scope:** Deck list page, deck detail page, create deck UI.
+**Scope:** Restructure navigation around decks. The deck list becomes the home page.
+Studying a deck and viewing deck stats are sibling routes under `/decks/:deckId`.
+Add persistent top nav bar.
 
 **Tasks:**
 
-- create deck list page at `/decks` (replace the simple home page)
-- create deck detail page at `/decks/:deckId` showing cards and a study button
+- add persistent top nav bar (Home + Stats links) visible on all pages
+- replace the dashboard page with a deck list at `/` showing decks with summary stats
+  (accuracy, weak card count, last studied) to guide the user toward their weakest deck
+- move study page route from `/decks/:deckId/study` to `/decks/:deckId`
+- create deck stats page at `/decks/:deckId/stats` using existing `statsRouter.deckStats`
+- add study/stats toggle within the deck view (uses route navigation, not UI state)
 - add create deck form/modal
 - wire TanStack Query to deck procedures
 
 **Tests:**
 
-- deck list renders decks
+- deck list renders decks with summary stats
 - empty state shows when no decks exist
+- study/stats toggle navigates between routes
+- top nav links are present and functional
 
 **Definition of Done:**
 
+- deck list is the home page with per-deck stats guiding deck selection
 - user can create a deck and see it in the list
-- user can open a deck detail page and start studying from it
+- clicking a deck goes to study view at `/decks/:deckId`
+- user can toggle to deck stats at `/decks/:deckId/stats` and back
+- browser back button works between study and stats views
+- top nav with Home and Stats is always visible
 
 ---
 
