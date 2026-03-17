@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,6 +64,12 @@ export default function StudyPage() {
       <CenteredPage centered>
         <h1 className="text-2xl font-bold">{deck.name}</h1>
         <p className="mt-4 text-muted-foreground">This deck has no cards.</p>
+        <Link
+          to={`/decks/${deckId}/cards`}
+          className="mt-2 text-primary underline hover:text-primary/80"
+        >
+          Add cards
+        </Link>
       </CenteredPage>
     );
   }

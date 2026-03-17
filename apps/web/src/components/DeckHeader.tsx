@@ -3,7 +3,7 @@ import { DeckTabs } from '@/components/DeckTabs';
 interface DeckHeaderProps {
   deckName: string;
   deckId: string;
-  activeTab: 'study' | 'stats';
+  activeTab: 'study' | 'cards' | 'stats';
 }
 
 export function DeckHeader({ deckName, deckId, activeTab }: DeckHeaderProps) {

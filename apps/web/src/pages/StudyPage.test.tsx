@@ -485,6 +485,8 @@ describe('StudyPage', () => {
 
     renderStudyPage();
     expect(screen.getByText(/this deck has no cards/i)).toBeInTheDocument();
+    const addCardsLink = screen.getByRole('link', { name: /add cards/i });
+    expect(addCardsLink).toHaveAttribute('href', '/decks/deck-1/cards');
   });
 
   it('shows loading state while deck is loading', () => {

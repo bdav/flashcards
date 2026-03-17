@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 interface DeckTabsProps {
   deckId: string;
-  activeTab: 'study' | 'stats';
+  activeTab: 'study' | 'cards' | 'stats';
 }
 
 const baseClasses =
@@ -20,6 +20,14 @@ export function DeckTabs({ deckId, activeTab }: DeckTabsProps) {
         aria-selected={activeTab === 'study'}
       >
         Study
+      </Link>
+      <Link
+        to={`/decks/${deckId}/cards`}
+        className={activeTab === 'cards' ? activeClasses : inactiveClasses}
+        role="tab"
+        aria-selected={activeTab === 'cards'}
+      >
+        Cards
       </Link>
       <Link
         to={`/decks/${deckId}/stats`}
