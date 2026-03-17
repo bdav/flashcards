@@ -1,8 +1,14 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ChevronLeft, ChevronRight, CornerDownLeft } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  CornerDownLeft,
+  RefreshCw,
+} from 'lucide-react';
 import { CardStack } from '@/components/CardStack';
 import { CenteredPage } from '@/components/CenteredPage';
 import { StudySkeleton } from '@/components/PageSkeleton';
@@ -11,11 +17,92 @@ import { useStudySession } from '@/hooks/useStudySession';
 import { DeckHeader } from '@/components/DeckHeader';
 import { formatPercent } from '@/lib/format';
 
+type CardSnapshot = {
+  card: { front: string; back: string };
+  result: { result: 'correct' | 'incorrect'; userAnswer: string } | null;
+  isFlipped: boolean;
+  queueLength: number;
+  progress: string | undefined;
+};
+
 const answerInputClasses =
   'h-auto flex-1 rounded-none border-0 border-b-2 border-white/40 bg-transparent py-2 text-center text-3xl font-bold uppercase tracking-wide text-white shadow-none focus-visible:ring-0 md:text-3xl placeholder:text-white/30';
 
 const navButtonClasses =
   'absolute top-1/2 h-16 w-16 -translate-y-1/2 active:translate-y-[-50%] text-white/50 disabled:opacity-40';
+
+const flipButtonClasses =
+  'absolute right-3 top-3 rounded p-1 text-white/40 transition-colors hover:bg-white/10 hover:text-white/80';
+
+function CardFront({ text, onFlip }: { text: string; onFlip?: () => void }) {
+  return (
+    <>
+      <p className="text-center text-3xl font-bold uppercase tracking-wide text-white">
+        {text}
+      </p>
+      {onFlip && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onFlip();
+          }}
+          className={flipButtonClasses}
+          title="Flip to back"
+          aria-label="Flip to back"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </button>
+      )}
+    </>
+  );
+}
+
+function CardBack({
+  card,
+  result,
+  onFlip,
+  includeTestIds = true,
+}: {
+  card: { front: string; back: string };
+  result: { result: 'correct' | 'incorrect'; userAnswer: string };
+  onFlip?: () => void;
+  includeTestIds?: boolean;
+}) {
+  return (
+    <div
+      className="text-center text-white"
+      data-testid={includeTestIds ? 'correct-answer' : undefined}
+    >
+      <p className="text-sm uppercase tracking-wide text-white/50">
+        {card.front}
+      </p>
+      <p className="mt-2 text-3xl font-bold uppercase tracking-wide text-white">
+        {card.back}
+      </p>
+      <p
+        className={`mt-4 text-lg font-semibold ${
+          result.result === 'correct' ? 'text-green-400' : 'text-red-400'
+        }`}
+        data-testid={includeTestIds ? 'result' : undefined}
+      >
+        {result.result === 'correct' ? 'Correct!' : 'Incorrect'}
+      </p>
+      {onFlip && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onFlip();
+          }}
+          className={flipButtonClasses}
+          title="Flip to front"
+          aria-label="Flip to front"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function StudyPage() {
   const { deckId } = useParams<{ deckId: string }>();
@@ -43,6 +130,96 @@ export default function StudyPage() {
     canGoBack,
     reviewEntry,
   } = useStudySession(deckId, cardQueue);
+
+  const currentCard = cardQueue.currentCard;
+  const isReviewing = studyState.phase === 'reviewing';
+
+  const displayCard = isReviewing ? reviewEntry?.card : currentCard;
+  const displayResult =
+    isReviewing && reviewEntry
+      ? reviewEntry
+      : studyState.phase === 'result'
+        ? { result: studyState.result, userAnswer: studyState.userAnswer }
+        : null;
+  const progress = isReviewing
+    ? undefined
+    : `${cardQueue.cardsStudied + 1} / ${cardQueue.cardsStudied + cardQueue.queue.length}`;
+
+  // Flip state: derived from phase, with optional manual override (flip button).
+  // When manualFlipOverride is null, isFlipped follows the phase naturally.
+  // The flip CSS transition fires when isFlipped changes on a mounted CardStack
+  // (e.g. answering→result). During slides, the key changes so the CardStack
+  // remounts and no transition fires regardless.
+  const [manualFlipOverride, setManualFlipOverride] = useState<boolean | null>(
+    null,
+  );
+  const naturalFlipped =
+    studyState.phase === 'result' || studyState.phase === 'reviewing';
+  const isFlipped = manualFlipOverride ?? naturalFlipped;
+
+  const [slideKey, setSlideKey] = useState(0);
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(
+    null,
+  );
+  const [exitingCard, setExitingCard] = useState<CardSnapshot | null>(null);
+
+  // Ref to snapshot current display state before navigation.
+  // Updated via effect so it's always current when event handlers read it.
+  const displayRef = useRef<CardSnapshot>({
+    card: displayCard ?? { front: '', back: '' },
+    result: displayResult,
+    isFlipped,
+    queueLength: cardQueue.queue.length,
+    progress,
+  });
+  useEffect(() => {
+    displayRef.current = {
+      card: displayCard ?? { front: '', back: '' },
+      result: displayResult,
+      isFlipped,
+      queueLength: cardQueue.queue.length,
+      progress,
+    };
+  });
+
+  const handleSlideEnd = useCallback(() => {
+    setExitingCard(null);
+    setSlideDirection(null);
+  }, []);
+
+  // Fallback cleanup — onAnimationEnd doesn't fire in JSDOM
+  useEffect(() => {
+    if (!exitingCard) return;
+    const timer = setTimeout(handleSlideEnd, 400);
+    return () => clearTimeout(timer);
+  }, [exitingCard, handleSlideEnd]);
+
+  const slideToNext = useCallback(() => {
+    setExitingCard(displayRef.current);
+    setSlideDirection('left');
+    setSlideKey((k) => k + 1);
+    setManualFlipOverride(null);
+    if (isReviewing) handleForward();
+    else handleNext();
+  }, [isReviewing, handleForward, handleNext]);
+
+  const slideToPrev = useCallback(() => {
+    setExitingCard(displayRef.current);
+    setSlideDirection('right');
+    setSlideKey((k) => k + 1);
+    setManualFlipOverride(null);
+    handleBack();
+  }, [handleBack]);
+
+  // Enter key advances during result phase (with slide)
+  useEffect(() => {
+    if (studyState.phase !== 'result') return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Enter') slideToNext();
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [studyState.phase, slideToNext]);
 
   if (deckQuery.isLoading) {
     return <StudySkeleton />;
@@ -151,17 +328,41 @@ export default function StudyPage() {
     );
   }
 
-  const currentCard = cardQueue.currentCard;
-  const isReviewing = studyState.phase === 'reviewing';
+  // Helper to render a study card — used for both the active card and the
+  // frozen snapshot during slide animations, avoiding JSX duplication.
+  const renderStudyCard = (
+    card: { front: string; back: string },
+    result: CardSnapshot['result'],
+    flipped: boolean,
+    queueLength: number,
+    cardProgress: string | undefined,
+    onFlip?: () => void,
+    includeTestIds = true,
+  ) => (
+    <CardStack
+      queueLength={queueLength}
+      progress={cardProgress}
+      isFlipped={result ? flipped : undefined}
+      backChildren={
+        result ? (
+          <CardBack
+            card={card}
+            result={result}
+            onFlip={onFlip}
+            includeTestIds={includeTestIds}
+          />
+        ) : undefined
+      }
+    >
+      <CardFront
+        text={card.front}
+        onFlip={result && !flipped ? onFlip : undefined}
+      />
+    </CardStack>
+  );
 
-  // Determine what to show on the card
-  const displayCard = isReviewing ? reviewEntry?.card : currentCard;
-  const displayResult =
-    isReviewing && reviewEntry
-      ? reviewEntry
-      : studyState.phase === 'result'
-        ? { result: studyState.result, userAnswer: studyState.userAnswer }
-        : null;
+  const toggleFlip = () =>
+    setManualFlipOverride((prev) => !(prev ?? naturalFlipped));
 
   return (
     <CenteredPage>
@@ -175,50 +376,64 @@ export default function StudyPage() {
 
       <div className="flex w-full flex-1 flex-col items-center justify-center">
         <div className="relative w-full max-w-md">
-          <CardStack
-            queueLength={cardQueue.queue.length}
-            progress={
-              isReviewing
-                ? undefined
-                : `${cardQueue.cardsStudied + 1} / ${cardQueue.cardsStudied + cardQueue.queue.length}`
-            }
-          >
-            {studyState.phase === 'answering' && displayCard && (
-              <p className="text-center text-3xl font-bold uppercase tracking-wide text-white">
-                {displayCard.front}
-              </p>
-            )}
-            {(studyState.phase === 'result' || isReviewing) &&
-              displayCard &&
-              displayResult && (
+          {exitingCard && slideDirection ? (
+            <div className="overflow-hidden">
+              <div className="relative">
+                {/* Exiting card — in normal flow (maintains height), slides out */}
                 <div
-                  className="text-center text-white"
-                  data-testid="correct-answer"
+                  className={
+                    slideDirection === 'left'
+                      ? 'animate-card-out-left'
+                      : 'animate-card-out-right'
+                  }
                 >
-                  <p className="text-sm uppercase tracking-wide text-white/50">
-                    {displayCard.front}
-                  </p>
-                  <p className="mt-2 text-3xl font-bold uppercase tracking-wide text-white">
-                    {displayCard.back}
-                  </p>
-                  <p
-                    className={`mt-4 text-lg font-semibold ${
-                      displayResult.result === 'correct'
-                        ? 'text-green-400'
-                        : 'text-red-400'
-                    }`}
-                    data-testid="result"
-                  >
-                    {displayResult.result === 'correct'
-                      ? 'Correct!'
-                      : 'Incorrect'}
-                  </p>
+                  {renderStudyCard(
+                    exitingCard.card,
+                    exitingCard.result,
+                    exitingCard.isFlipped,
+                    exitingCard.queueLength,
+                    exitingCard.progress,
+                    undefined,
+                    false,
+                  )}
                 </div>
+                {/* Entering card — absolutely positioned, slides in */}
+                {displayCard && (
+                  <div
+                    className={`absolute inset-0 ${
+                      slideDirection === 'left'
+                        ? 'animate-card-in-from-right'
+                        : 'animate-card-in-from-left'
+                    }`}
+                    onAnimationEnd={handleSlideEnd}
+                  >
+                    {renderStudyCard(
+                      displayCard,
+                      displayResult,
+                      isFlipped,
+                      cardQueue.queue.length,
+                      progress,
+                      toggleFlip,
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : displayCard ? (
+            <div key={slideKey}>
+              {renderStudyCard(
+                displayCard,
+                displayResult,
+                isFlipped,
+                cardQueue.queue.length,
+                progress,
+                toggleFlip,
               )}
-          </CardStack>
+            </div>
+          ) : null}
 
           <Button
-            onClick={handleBack}
+            onClick={slideToPrev}
             disabled={!canGoBack}
             variant="ghost"
             size="icon"
@@ -229,13 +444,7 @@ export default function StudyPage() {
           </Button>
 
           <Button
-            onClick={
-              isReviewing
-                ? handleForward
-                : studyState.phase === 'result'
-                  ? handleNext
-                  : undefined
-            }
+            onClick={slideToNext}
             disabled={studyState.phase === 'answering'}
             variant="ghost"
             size="icon"

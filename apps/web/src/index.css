@@ -5,6 +5,10 @@
   --color-soft-muted-foreground: oklch(0.75 0.12 250);
   --animate-pulse-halo: pulse-halo 2s ease-in-out infinite;
   --animate-pulse-halo-border: pulse-halo-border 2s ease-in-out infinite;
+  --animate-card-out-left: card-out-left 350ms ease-in-out forwards;
+  --animate-card-in-from-right: card-in-from-right 350ms ease-in-out forwards;
+  --animate-card-out-right: card-out-right 350ms ease-in-out forwards;
+  --animate-card-in-from-left: card-in-from-left 350ms ease-in-out forwards;
 }
 
 .bg-ocean-gradient {
@@ -54,6 +58,45 @@ button {
       drop-shadow(0 0 10px oklch(0.67 0.22 250))
       drop-shadow(0 0 18px oklch(0.62 0.18 250 / 0.8));
     color: white;
+  }
+}
+
+/* Card slide: two independent cards animate in sync as a train car.
+   Each card uses translateX(±100%) relative to its own width, so they
+   stay adjacent (no gap, no overlap) throughout the animation. */
+@keyframes card-out-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes card-in-from-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes card-out-right {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes card-in-from-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
   }
 }
 

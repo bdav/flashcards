@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { type useCardQueue } from './useCardQueue';
 
@@ -175,15 +175,6 @@ export function useStudySession(
     studyState.phase === 'reviewing'
       ? history[studyState.reviewIndex]
       : undefined;
-
-  useEffect(() => {
-    if (studyState.phase !== 'result') return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Enter') handleNext();
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [studyState.phase, handleNext]);
 
   return {
     studyState,
