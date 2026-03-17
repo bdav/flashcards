@@ -638,6 +638,24 @@ describe('StudyPage', () => {
       expect(backButton).not.toBeDisabled();
     });
 
+    it('shows title card when backing from first card before answering', async () => {
+      setupMocksWithStartSession();
+      const user = userEvent.setup();
+      renderStudyPage();
+
+      await user.click(screen.getByRole('button', { name: /test deck/i }));
+      expect(screen.getByText('What is 2+2?')).toBeInTheDocument();
+
+      // Back from first card with no answers — should show title card
+      await user.click(screen.getByRole('button', { name: /previous/i }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(`${mockDeck.cards.length} cards`),
+        ).toBeInTheDocument();
+      });
+    });
+
     it('shows title card when backing past first history entry', async () => {
       setupMocksWithStartSession();
       const user = userEvent.setup();

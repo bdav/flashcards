@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Plus, Trash2, Upload } from 'lucide-react';
+import { Pencil, Plus, Trash2, Upload } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { CenteredPage } from '@/components/CenteredPage';
 import { DeckTabs } from '@/components/DeckTabs';
@@ -55,13 +54,16 @@ function EditableDeckTitle({ deckId, name }: { deckId: string; name: string }) {
 
   if (!isEditing) {
     return (
-      <h1
-        className="cursor-text text-3xl font-bold text-white hover:text-white/80"
+      <div
+        className="group flex cursor-text items-center gap-3"
         onClick={() => setIsEditing(true)}
         title="Click to edit"
       >
-        {localName}
-      </h1>
+        <h1 className="text-3xl font-bold text-white group-hover:text-white/80">
+          {localName}
+        </h1>
+        <Pencil className="h-5 w-5 text-white/40 group-hover:text-white/60" />
+      </div>
     );
   }
 
@@ -230,7 +232,7 @@ export default function DeckCardsPage() {
           {isCreating ? (
             <DeckCard stackCount={0}>
               <form
-                className="flex w-full flex-col items-center gap-2 px-2"
+                className="flex w-full flex-col items-center gap-4 px-2"
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (!newFront.trim() || !newBack.trim()) return;
@@ -241,29 +243,40 @@ export default function DeckCardsPage() {
                   });
                 }}
               >
-                <Input
-                  type="text"
-                  value={newFront}
-                  onChange={(e) => setNewFront(e.target.value)}
-                  placeholder="Front"
-                  autoFocus
-                  className="text-center text-sm"
-                />
-                <Input
-                  type="text"
-                  value={newBack}
-                  onChange={(e) => setNewBack(e.target.value)}
-                  placeholder="Back"
-                  className="text-center text-sm"
-                />
-                <div className="flex gap-2">
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={createCard.isPending}
-                  >
-                    Add
-                  </Button>
+                <label className="w-full">
+                  <span className="mb-1 block text-xs text-white/50">
+                    Front
+                  </span>
+                  <textarea
+                    value={newFront}
+                    onChange={(e) => setNewFront(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.currentTarget.form?.requestSubmit();
+                      }
+                    }}
+                    autoFocus
+                    rows={2}
+                    className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                </label>
+                <label className="w-full">
+                  <span className="mb-1 block text-xs text-white/50">Back</span>
+                  <textarea
+                    value={newBack}
+                    onChange={(e) => setNewBack(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.currentTarget.form?.requestSubmit();
+                      }
+                    }}
+                    rows={2}
+                    className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                </label>
+                <div className="flex w-full justify-end gap-2">
                   <Button
                     type="button"
                     size="sm"
@@ -276,6 +289,17 @@ export default function DeckCardsPage() {
                   >
                     Cancel
                   </Button>
+                  <button
+                    type="submit"
+                    disabled={
+                      createCard.isPending ||
+                      !newFront.trim() ||
+                      !newBack.trim()
+                    }
+                    className={`rounded-md px-3 py-1 text-sm font-semibold text-white focus:outline-none disabled:opacity-40 ${newFront.trim() && newBack.trim() ? 'animate-pulse-halo' : ''}`}
+                  >
+                    Add
+                  </button>
                 </div>
               </form>
             </DeckCard>

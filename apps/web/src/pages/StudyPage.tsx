@@ -127,7 +127,11 @@ export default function StudyPage() {
   const isIdle = studyState.phase === 'idle';
   const isAtTitle = isIdle || (isReviewing && !reviewEntry);
 
-  const displayCard = isReviewing ? reviewEntry?.card : currentCard;
+  const displayCard = isAtTitle
+    ? undefined
+    : isReviewing
+      ? reviewEntry?.card
+      : currentCard;
   const displayResult =
     isReviewing && reviewEntry
       ? reviewEntry
@@ -249,24 +253,36 @@ export default function StudyPage() {
           activeTab="study"
         />
         <div className="flex w-full flex-1 flex-col items-center justify-center">
-          <h2 className="text-2xl font-bold text-white">Session complete!</h2>
-          <p className="mt-2 text-white/60">
-            You studied all {cards.length} cards.
-          </p>
-          <div className="mt-4 flex gap-6 text-lg">
-            <span className="font-semibold text-green-400">
-              {correctCount} correct
-            </span>
-            <span className="font-semibold text-red-400">
-              {incorrectCount} incorrect
-            </span>
+          <div className="relative w-full max-w-md pt-3">
+            <div className="relative flex aspect-3/2 w-full flex-col items-center justify-center rounded-xl border border-white/30 bg-white/10 p-8 backdrop-blur-sm">
+              <h2 className="text-2xl font-bold text-white">
+                Session complete!
+              </h2>
+              <p className="mt-2 text-sm text-white/50">
+                You studied all {cards.length} cards.
+              </p>
+              <div className="mt-4 flex gap-4">
+                <span className="inline-block rounded-full bg-green-500 px-4 py-1 text-lg font-semibold text-white">
+                  {correctCount} correct
+                </span>
+                <span className="inline-block rounded-full bg-red-400 px-4 py-1 text-lg font-semibold text-white">
+                  {incorrectCount} incorrect
+                </span>
+              </div>
+              <p className="mt-3 text-sm text-white/50">
+                First-try accuracy: {formatPercent(firstTryAccuracy)}
+              </p>
+            </div>
           </div>
-          <p className="mt-2 text-white/60">
-            First-try accuracy: {formatPercent(firstTryAccuracy)}
-          </p>
-          <Button className="mt-6" onClick={handleStart}>
-            Study again
-          </Button>
+          <div className="mt-6">
+            <button
+              autoFocus
+              onClick={handleStart}
+              className="animate-pulse-halo cursor-pointer bg-transparent text-lg font-semibold text-white focus:outline-none"
+            >
+              Study again
+            </button>
+          </div>
         </div>
       </CenteredPage>
     );

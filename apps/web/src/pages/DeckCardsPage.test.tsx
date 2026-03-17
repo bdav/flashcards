@@ -197,8 +197,8 @@ describe('DeckCardsPage', () => {
     expect(screen.getByText('New Card')).toBeInTheDocument();
     await user.click(screen.getByText('New Card'));
 
-    expect(screen.getByPlaceholderText('Front')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Back')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /front/i })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /back/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^add$/i })).toBeInTheDocument();
   });
 
@@ -217,8 +217,11 @@ describe('DeckCardsPage', () => {
     renderDeckCardsPage();
 
     await user.click(screen.getByText('New Card'));
-    await user.type(screen.getByPlaceholderText('Front'), 'Capital of Spain');
-    await user.type(screen.getByPlaceholderText('Back'), 'Madrid');
+    await user.type(
+      screen.getByRole('textbox', { name: /front/i }),
+      'Capital of Spain',
+    );
+    await user.type(screen.getByRole('textbox', { name: /back/i }), 'Madrid');
     await user.click(screen.getByRole('button', { name: /^add$/i }));
 
     expect(mockMutate).toHaveBeenCalledWith({
