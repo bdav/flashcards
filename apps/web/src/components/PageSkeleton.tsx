@@ -5,13 +5,10 @@ export function DeckListSkeleton() {
   return (
     <CenteredPage>
       <div className="w-full max-w-4xl" role="status" aria-label="Loading">
-        <Skeleton className="h-8 w-40 bg-white/10" />
+        <Skeleton className="h-8 w-40" />
         <div className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-3">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton
-              key={i}
-              className="aspect-3/2 w-full rounded-xl bg-white/10"
-            />
+            <Skeleton key={i} className="aspect-3/2 w-full rounded-xl" />
           ))}
         </div>
       </div>
@@ -69,11 +66,11 @@ export function StudySkeleton() {
   return (
     <CenteredPage>
       <div className="w-full max-w-2xl" role="status" aria-label="Loading">
-        <Skeleton className="h-8 w-48 bg-white/10" />
-        <Skeleton className="mt-2 h-10 w-64 bg-white/10" />
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="mt-2 h-10 w-64" />
       </div>
       <div className="flex flex-1 items-center justify-center">
-        <Skeleton className="h-64 w-full max-w-md rounded-xl bg-white/10" />
+        <Skeleton className="h-64 w-full max-w-md rounded-xl" />
       </div>
     </CenteredPage>
   );
