@@ -56,11 +56,70 @@ This project is an exercise in test-driven development. Follow the red-green-ref
 
 TDD is most valuable for: CSV parsing, auth helpers, permission/ownership rules, study session logic, stats calculations, API procedure behavior. Be more pragmatic for static presentational components and trivial layout code.
 
+## Current State (MVP Complete)
+
+The full MVP from `implementation-plan.md` is implemented. All 18 planned PRs are delivered. 119 API tests, 103 web tests passing.
+
+### Features
+
+- **Auth**: Email/password signup & login, bcrypt password hashing, session cookies (HTTP-only), protected routes with redirect to `/login`
+- **Decks**: Create, list (with summary stats: accuracy, card count, last studied), update name/description, delete with cascade
+- **Cards**: Create single cards, CSV import (header validation, whitespace trimming, blank row skipping), update (partial), delete, list by deck
+- **Study**: Type-answer flow with server-side grading, flashcard-style UI (front/back), incorrect cards re-queued, multi-attempt tracking with `attemptNumber`, session start/finish lifecycle
+- **Stats**: Per-deck stats (first-try accuracy, overall accuracy, per-card avg attempts-to-correct), overall stats (aggregates + weak cards), empty/loading/error states
+- **UX Polish**: Loading skeletons, Sonner toast notifications, error boundaries (app root + per-route), seed data (4 decks, 30 cards, 3 study sessions)
+
+### Routes
+
+| Path                   | Page                | Auth      |
+| ---------------------- | ------------------- | --------- |
+| `/login`               | LoginPage           | Public    |
+| `/signup`              | SignupPage          | Public    |
+| `/`                    | DeckListPage (home) | Protected |
+| `/decks/:deckId`       | StudyPage           | Protected |
+| `/decks/:deckId/cards` | DeckCardsPage       | Protected |
+| `/decks/:deckId/stats` | DeckStatsPage       | Protected |
+| `/stats`               | StatsPage (overall) | Protected |
+
+### tRPC API
+
+All procedures except `auth.*` and `healthCheck` require authentication via `protectedProcedure`. All data procedures enforce ownership (user can only access their own decks/cards/sessions).
+
+| Router  | Procedure                                        | Type     |
+| ------- | ------------------------------------------------ | -------- |
+| `auth`  | `signup`, `login`, `logout`                      | mutation |
+| `auth`  | `me`                                             | query    |
+| `deck`  | `create`, `update`, `delete`                     | mutation |
+| `deck`  | `getById`, `list`                                | query    |
+| `card`  | `create`, `update`, `delete`, `importCsv`        | mutation |
+| `card`  | `listByDeck`                                     | query    |
+| `study` | `startSession`, `submitAttempt`, `finishSession` | mutation |
+| `study` | `getSession`                                     | query    |
+| `stats` | `deckStats`, `overallStats`                      | query    |
+
+### Key Services
+
+- **`answerGrader.ts`**: Tier 1 deterministic grading — normalizes answers (lowercase, strip diacritics/punctuation, trim whitespace) and compares. Designed for future extension with embedding similarity (Tier 2) and local LLM adjudication (Tier 3). See `implementation-plan.md` "Future Enhancement" section.
+
+### Data Model
+
+Five models in `prisma/schema.prisma`: `User`, `Deck`, `Card`, `StudySession`, `CardAttempt`. `AttemptResult` enum (`CORRECT`/`INCORRECT`). Cascade deletes on all parent relationships. Composite index on `[studySessionId, cardId]` for attempt lookups.
+
+### Testing Patterns
+
+- **API tests** use isolated per-suite SQLite databases via `apps/api/src/test-helpers.ts` — each test suite gets its own DB, Prisma client, and tRPC caller
+- **Web tests** use Vitest + React Testing Library with mocked tRPC hooks
+- **Seed data** is idempotent (`deleteMany` before re-seeding)
+
 ## Implementation Plan
 
-See `implementation-plan.md` for the full plan, PR breakdown, and implementation order. Key points:
+See `implementation-plan.md` for the original plan, PR breakdown, and design decisions. The plan is fully delivered. Future work is post-MVP.
 
-- **Auth is deferred.** The first pass builds a single-user app with no login. A seed user is used implicitly by all procedures. Auth wraps around the app later.
-- **Backend PRs land before frontend PRs** so the UI builds on real APIs.
-- **Build vertical slices** — each PR is a focused, reviewable unit delivering end-to-end functionality.
-- **tRPC routers** are organized by domain: auth, deck, card, study, stats.
+### Post-MVP Enhancement Ideas
+
+- **AI answer grading**: 3-tier pipeline (deterministic → embedding similarity → local LLM). Architecture detailed in `implementation-plan.md`
+- **Spaced repetition**: `CardProgress` model with ease/streak/dueAt fields
+- **PostgreSQL deployment**: Schema is Postgres-ready, swap adapter + connection string
+- **E2E tests**: Playwright for core user journeys
+- **Deck sharing / public marketplace**
+- **Import preview before commit**
