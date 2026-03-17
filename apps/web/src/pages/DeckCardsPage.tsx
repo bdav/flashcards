@@ -157,7 +157,12 @@ export default function DeckCardsPage() {
       invalidateCards();
       setCsvError(null);
       setIsImporting(false);
-      toast.success(`Imported ${data.importedCount} cards`);
+      const updated = data.updatedCount ?? 0;
+      const parts = [`Imported ${data.importedCount} cards`];
+      if (updated > 0) {
+        parts.push(`${updated} updated`);
+      }
+      toast.success(parts.join(', '));
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }

@@ -24,6 +24,26 @@ export const cardRouter = router({
         });
       }
 
+      // Case-insensitive dedupe on front. Done in JS because SQLite doesn't
+      // support Prisma's `mode: 'insensitive'`. On Postgres, use findFirst
+      // with { mode: 'insensitive' } for DB-level filtering.
+      const existingCards = await ctx.prisma.card.findMany({
+        where: { deckId: input.deckId },
+      });
+      const duplicate = existingCards.find(
+        (c) => c.front.toLowerCase() === input.front.toLowerCase(),
+      );
+
+      if (duplicate) {
+        if (duplicate.back.toLowerCase() !== input.back.toLowerCase()) {
+          return ctx.prisma.card.update({
+            where: { id: duplicate.id },
+            data: { back: input.back },
+          });
+        }
+        return duplicate;
+      }
+
       return ctx.prisma.card.create({
         data: {
           deckId: input.deckId,
@@ -137,14 +157,50 @@ export const cardRouter = router({
         });
       }
 
-      await ctx.prisma.card.createMany({
-        data: result.cards.map((card) => ({
-          deckId: input.deckId,
-          front: card.front,
-          back: card.back,
-        })),
-      });
+      // Dedupe within CSV on front (last occurrence wins)
+      const csvByFront = new Map<string, { front: string; back: string }>();
+      for (const card of result.cards) {
+        csvByFront.set(card.front.toLowerCase(), card);
+      }
+      const uniqueCsvCards = [...csvByFront.values()];
 
-      return { importedCount: result.cards.length };
+      // Compare against existing cards in deck (case-insensitive on front).
+      // Done in JS because SQLite doesn't support Prisma's `mode: 'insensitive'`.
+      const existingCards = await ctx.prisma.card.findMany({
+        where: { deckId: input.deckId },
+        select: { id: true, front: true, back: true },
+      });
+      const existingByFront = new Map(
+        existingCards.map((c) => [c.front.toLowerCase(), c]),
+      );
+
+      const toCreate: { front: string; back: string }[] = [];
+      let updatedCount = 0;
+
+      for (const card of uniqueCsvCards) {
+        const existing = existingByFront.get(card.front.toLowerCase());
+        if (!existing) {
+          toCreate.push(card);
+        } else if (existing.back.toLowerCase() !== card.back.toLowerCase()) {
+          await ctx.prisma.card.update({
+            where: { id: existing.id },
+            data: { back: card.back },
+          });
+          updatedCount++;
+        }
+        // else: exact match on front+back, skip
+      }
+
+      if (toCreate.length > 0) {
+        await ctx.prisma.card.createMany({
+          data: toCreate.map((card) => ({
+            deckId: input.deckId,
+            front: card.front,
+            back: card.back,
+          })),
+        });
+      }
+
+      return { importedCount: toCreate.length, updatedCount };
     }),
 });

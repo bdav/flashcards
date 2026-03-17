@@ -202,6 +202,78 @@ describe('cardRouter', () => {
       expect(card.front).toBe('What is 2+2?');
       expect(card.back).toBe('4');
     });
+
+    it('returns existing card when front and back both match', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Test Deck',
+          userId,
+          cards: { create: [{ front: 'What is 2+2?', back: '4' }] },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      const card = await caller.card.create({
+        deckId: deck.id,
+        front: 'What is 2+2?',
+        back: '4',
+      });
+
+      expect(card.id).toBe(deck.cards[0].id);
+      expect(card.back).toBe('4');
+
+      const cards = await caller.card.listByDeck({ deckId: deck.id });
+      expect(cards).toHaveLength(1);
+    });
+
+    it('updates existing card back when front matches with different answer', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Test Deck',
+          userId,
+          cards: { create: [{ front: 'What is 2+2?', back: '5' }] },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      const card = await caller.card.create({
+        deckId: deck.id,
+        front: 'What is 2+2?',
+        back: '4',
+      });
+
+      expect(card.id).toBe(deck.cards[0].id);
+      expect(card.back).toBe('4');
+
+      const cards = await caller.card.listByDeck({ deckId: deck.id });
+      expect(cards).toHaveLength(1);
+      expect(cards[0].back).toBe('4');
+    });
+
+    it('dedupes case-insensitively on front', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Test Deck',
+          userId,
+          cards: { create: [{ front: 'Hello', back: 'World' }] },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      const card = await caller.card.create({
+        deckId: deck.id,
+        front: 'hello',
+        back: 'world',
+      });
+
+      expect(card.id).toBe(deck.cards[0].id);
+
+      const cards = await caller.card.listByDeck({ deckId: deck.id });
+      expect(cards).toHaveLength(1);
+    });
   });
 
   describe('update', () => {
@@ -534,6 +606,118 @@ describe('cardRouter', () => {
           csvContent: 'front,back\nQ,A',
         }),
       ).rejects.toThrow(/not found/i);
+    });
+
+    it('dedupes identical rows within the CSV', async () => {
+      const deck = await prisma.deck.create({
+        data: { name: 'Import Deck', userId },
+      });
+
+      const caller = createCaller();
+      const result = await caller.card.importCsv({
+        deckId: deck.id,
+        csvContent: 'front,back\nQ1,A1\nQ1,A1\nQ2,A2',
+      });
+
+      expect(result.importedCount).toBe(2);
+      expect(result.updatedCount).toBe(0);
+
+      const cards = await prisma.card.findMany({
+        where: { deckId: deck.id },
+      });
+      expect(cards).toHaveLength(2);
+    });
+
+    it('keeps last answer when CSV has duplicate fronts with different backs', async () => {
+      const deck = await prisma.deck.create({
+        data: { name: 'Import Deck', userId },
+      });
+
+      const caller = createCaller();
+      const result = await caller.card.importCsv({
+        deckId: deck.id,
+        csvContent: 'front,back\nQ1,Wrong Answer\nQ1,Right Answer\nQ2,A2',
+      });
+
+      expect(result.importedCount).toBe(2);
+      expect(result.updatedCount).toBe(0);
+
+      const cards = await prisma.card.findMany({
+        where: { deckId: deck.id },
+        orderBy: { createdAt: 'asc' },
+      });
+      expect(cards).toHaveLength(2);
+      expect(cards.find((c) => c.front === 'Q1')?.back).toBe('Right Answer');
+    });
+
+    it('skips cards that fully match existing cards in the deck', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Import Deck',
+          userId,
+          cards: { create: [{ front: 'Existing Q', back: 'Existing A' }] },
+        },
+      });
+
+      const caller = createCaller();
+      const result = await caller.card.importCsv({
+        deckId: deck.id,
+        csvContent: 'front,back\nExisting Q,Existing A\nNew Q,New A',
+      });
+
+      expect(result.importedCount).toBe(1);
+      expect(result.updatedCount).toBe(0);
+
+      const cards = await prisma.card.findMany({
+        where: { deckId: deck.id },
+      });
+      expect(cards).toHaveLength(2);
+    });
+
+    it('updates existing card back when CSV has same front with different answer', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Import Deck',
+          userId,
+          cards: { create: [{ front: 'Capital of France', back: 'Lyon' }] },
+        },
+      });
+
+      const caller = createCaller();
+      const result = await caller.card.importCsv({
+        deckId: deck.id,
+        csvContent: 'front,back\nCapital of France,Paris\nNew Q,New A',
+      });
+
+      expect(result.importedCount).toBe(1);
+      expect(result.updatedCount).toBe(1);
+
+      const cards = await prisma.card.findMany({
+        where: { deckId: deck.id },
+      });
+      expect(cards).toHaveLength(2);
+      expect(cards.find((c) => c.front === 'Capital of France')?.back).toBe(
+        'Paris',
+      );
+    });
+
+    it('dedupes case-insensitively against existing cards', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Import Deck',
+          userId,
+          cards: { create: [{ front: 'Hello', back: 'World' }] },
+        },
+      });
+
+      const caller = createCaller();
+      const result = await caller.card.importCsv({
+        deckId: deck.id,
+        csvContent: 'front,back\nhello,world\nNew Q,New A',
+      });
+
+      expect(result.importedCount).toBe(1);
+      expect(result.updatedCount).toBe(0);
     });
   });
 });
