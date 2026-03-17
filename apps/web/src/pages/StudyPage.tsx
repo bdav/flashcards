@@ -29,7 +29,7 @@ const answerInputClasses =
   'h-auto flex-1 rounded-none border-0 border-b-2 border-white/40 bg-transparent py-2 text-center text-3xl font-bold uppercase tracking-wide text-white shadow-none focus-visible:ring-0 md:text-3xl placeholder:text-white/30';
 
 const navButtonClasses =
-  'absolute top-1/2 h-16 w-16 -translate-y-1/2 active:translate-y-[-50%] text-white/50 disabled:opacity-40';
+  'absolute top-1/2 h-16 w-16 -translate-y-1/2 active:translate-y-[-50%] text-white/50 disabled:opacity-40 focus-visible:border-transparent focus-visible:ring-0';
 
 const flipButtonClasses =
   'absolute right-3 top-3 rounded p-1 text-white/40 transition-colors hover:bg-white/10 hover:text-white/80';
@@ -135,6 +135,7 @@ export default function StudyPage() {
 
   const currentCard = cardQueue.currentCard;
   const isReviewing = studyState.phase === 'reviewing';
+  const isAtTitle = isReviewing && !reviewEntry;
 
   const displayCard = isReviewing ? reviewEntry?.card : currentCard;
   const displayResult =
@@ -150,6 +151,9 @@ export default function StudyPage() {
   const [slideKey, setSlideKey] = useState(0);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(
     null,
+  );
+  const [lastNavDirection, setLastNavDirection] = useState<'forward' | 'back'>(
+    'forward',
   );
   const [exitingCard, setExitingCard] = useState<CardSnapshot | null>(null);
 
@@ -188,6 +192,7 @@ export default function StudyPage() {
     setExitingCard(displayRef.current);
     setSlideDirection('left');
     setSlideKey((k) => k + 1);
+    setLastNavDirection('forward');
     if (isReviewing) handleForward();
     else handleNext();
   }, [isReviewing, handleForward, handleNext]);
@@ -196,8 +201,33 @@ export default function StudyPage() {
     setExitingCard(displayRef.current);
     setSlideDirection('right');
     setSlideKey((k) => k + 1);
+    setLastNavDirection('back');
     handleBack();
   }, [handleBack]);
+
+  const forwardButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Focus the forward button when arriving at the title card mid-session
+  useEffect(() => {
+    if (isAtTitle && !exitingCard) {
+      forwardButtonRef.current?.focus();
+    }
+  }, [isAtTitle, exitingCard]);
+
+  const startSession = useCallback(() => {
+    setLastNavDirection('forward');
+    handleStart();
+  }, [handleStart]);
+
+  // Enter key starts session during idle phase
+  useEffect(() => {
+    if (studyState.phase !== 'idle') return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Enter') startSession();
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [studyState.phase, startSession]);
 
   // Enter key advances during result phase (with slide)
   useEffect(() => {
@@ -249,7 +279,7 @@ export default function StudyPage() {
           <CardStack
             queueLength={cards.length}
             className="animate-pulse-halo-border cursor-pointer"
-            onClick={handleStart}
+            onClick={startSession}
           >
             <p className="text-3xl font-bold text-white">
               {cards.length} cards
@@ -308,7 +338,7 @@ export default function StudyPage() {
           <p className="mt-2 text-white/60">
             First-try accuracy: {formatPercent(firstTryAccuracy)}
           </p>
-          <Button className="mt-6" onClick={handleStart}>
+          <Button className="mt-6" onClick={startSession}>
             Study again
           </Button>
         </div>
@@ -383,7 +413,7 @@ export default function StudyPage() {
                   )}
                 </div>
                 {/* Entering card — absolutely positioned, slides in */}
-                {displayCard && (
+                {(displayCard || isAtTitle) && (
                   <div
                     className={`absolute inset-0 ${
                       slideDirection === 'left'
@@ -392,13 +422,24 @@ export default function StudyPage() {
                     }`}
                     onAnimationEnd={handleSlideEnd}
                   >
-                    {renderStudyCard(
-                      displayCard,
-                      displayResult,
-                      isFlipped,
-                      cardQueue.queue.length,
-                      progress,
-                      toggleFlip,
+                    {displayCard ? (
+                      renderStudyCard(
+                        displayCard,
+                        displayResult,
+                        isFlipped,
+                        cardQueue.queue.length,
+                        progress,
+                        toggleFlip,
+                      )
+                    ) : (
+                      <CardStack queueLength={cards.length}>
+                        <p className="text-3xl font-bold text-white">
+                          {cards.length} cards
+                        </p>
+                        <p className="mt-4 text-lg text-white/70">
+                          Start studying
+                        </p>
+                      </CardStack>
                     )}
                   </div>
                 )}
@@ -415,26 +456,38 @@ export default function StudyPage() {
                 toggleFlip,
               )}
             </div>
+          ) : isAtTitle ? (
+            <div key={slideKey}>
+              <CardStack queueLength={cards.length}>
+                <p className="text-3xl font-bold text-white">
+                  {cards.length} cards
+                </p>
+                <p className="mt-4 text-lg text-white/70">Start studying</p>
+              </CardStack>
+            </div>
           ) : null}
 
-          <Button
-            onClick={slideToPrev}
-            disabled={!canGoBack}
-            variant="ghost"
-            size="icon"
-            aria-label="Previous"
-            className={`-left-20 ${navButtonClasses}`}
-          >
-            <ChevronLeft className="size-14" />
-          </Button>
+          {!isAtTitle && (
+            <Button
+              onClick={slideToPrev}
+              disabled={!canGoBack}
+              variant="ghost"
+              size="icon"
+              aria-label="Previous"
+              className={`-left-20 ${navButtonClasses} ${studyState.phase !== 'answering' && lastNavDirection === 'back' && canGoBack ? 'animate-pulse-halo' : ''}`}
+            >
+              <ChevronLeft className="size-14" />
+            </Button>
+          )}
 
           <Button
+            ref={forwardButtonRef}
             onClick={slideToNext}
             disabled={studyState.phase === 'answering'}
             variant="ghost"
             size="icon"
             aria-label="Next"
-            className={`-right-20 ${navButtonClasses} ${studyState.phase !== 'answering' ? 'animate-pulse-halo' : ''}`}
+            className={`-right-20 ${navButtonClasses} ${studyState.phase !== 'answering' && (lastNavDirection === 'forward' || isAtTitle) ? 'animate-pulse-halo' : ''}`}
           >
             <ChevronRight className="size-14" />
           </Button>

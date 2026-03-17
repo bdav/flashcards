@@ -127,7 +127,7 @@ export function useStudySession(
         showingBack: true,
       });
     } else if (studyState.phase === 'result' && history.length === 1) {
-      setStudyState({ phase: 'idle' });
+      setStudyState({ phase: 'reviewing', reviewIndex: -1, showingBack: true });
     } else if (studyState.phase === 'reviewing' && studyState.reviewIndex > 0) {
       setStudyState({
         phase: 'reviewing',
@@ -138,11 +138,11 @@ export function useStudySession(
       studyState.phase === 'reviewing' &&
       studyState.reviewIndex === 0
     ) {
-      setStudyState({ phase: 'idle' });
+      setStudyState({ phase: 'reviewing', reviewIndex: -1, showingBack: true });
     }
   }, [studyState, history.length]);
 
-  const handleForward = useCallback(() => {
+  const handleForward = useCallback(async () => {
     if (studyState.phase !== 'reviewing') return;
 
     if (studyState.reviewIndex < history.length - 1) {
@@ -163,21 +163,34 @@ export function useStudySession(
         // We're on a new card that hasn't been answered yet
         setStudyState({ phase: 'answering' });
       } else if (lastEntry) {
-        // The current card was already answered (result phase)
-        setStudyState({
-          phase: 'result',
-          result: lastEntry.result,
-          userAnswer: lastEntry.userAnswer,
-          showingBack: true,
-        });
+        // Current card was already answered — advance past it
+        const requeue = lastEntry.result === 'incorrect';
+        const remainingAfterAdvance =
+          cardQueue.queue.length - 1 + (requeue ? 1 : 0);
+
+        if (remainingAfterAdvance === 0) {
+          if (sessionId) {
+            try {
+              await finishSession.mutateAsync({ id: sessionId });
+            } catch (err) {
+              console.error('Failed to finish study session:', err);
+            }
+          }
+          cardQueue.advance(requeue);
+          setStudyState({ phase: 'complete' });
+        } else {
+          cardQueue.advance(requeue);
+          setAnswerInput('');
+          setStudyState({ phase: 'answering' });
+        }
       }
     }
-  }, [studyState, history, cardQueue.currentCard]);
+  }, [studyState, history, cardQueue, sessionId, finishSession]);
 
   const canGoBack =
     studyState.phase === 'answering' ||
     studyState.phase === 'result' ||
-    studyState.phase === 'reviewing';
+    (studyState.phase === 'reviewing' && studyState.reviewIndex >= 0);
 
   const reviewEntry =
     studyState.phase === 'reviewing'
