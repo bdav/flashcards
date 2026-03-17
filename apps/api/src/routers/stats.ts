@@ -1,6 +1,6 @@
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { publicProcedure, router } from './trpc.js';
+import { protectedProcedure, router } from './trpc.js';
 import { type AttemptResult } from '@prisma/client';
 
 interface Attempt {
@@ -95,7 +95,7 @@ function computePerCardStats(attempts: Attempt[]): {
 const MAX_WEAK_CARDS = 10;
 
 export const statsRouter = router({
-  deckStats: publicProcedure
+  deckStats: protectedProcedure
     .input(z.object({ deckId: z.string() }))
     .query(async ({ ctx, input }) => {
       const deck = await ctx.prisma.deck.findUnique({
@@ -161,7 +161,7 @@ export const statsRouter = router({
       };
     }),
 
-  overallStats: publicProcedure.query(async ({ ctx }) => {
+  overallStats: protectedProcedure.query(async ({ ctx }) => {
     // TODO: Add pagination or date-range filtering for users with large attempt histories
     const attempts = await ctx.prisma.cardAttempt.findMany({
       where: {

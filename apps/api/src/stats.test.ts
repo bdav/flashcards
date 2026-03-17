@@ -70,7 +70,11 @@ afterAll(async () => {
 });
 
 function createCaller(overrideUserId?: string) {
-  return appRouter.createCaller({ prisma, userId: overrideUserId ?? userId });
+  return appRouter.createCaller({
+    prisma,
+    userId: overrideUserId ?? userId,
+    sessionToken: null,
+  });
 }
 
 describe('statsRouter', () => {

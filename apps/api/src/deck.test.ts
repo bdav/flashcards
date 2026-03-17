@@ -38,6 +38,7 @@ function createCaller(overrideUserId?: string) {
   return appRouter.createCaller({
     prisma,
     userId: overrideUserId ?? userId,
+    sessionToken: null,
   });
 }
 

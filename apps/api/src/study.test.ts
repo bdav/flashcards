@@ -48,7 +48,7 @@ afterAll(async () => {
 });
 
 function createCaller() {
-  return appRouter.createCaller({ prisma, userId });
+  return appRouter.createCaller({ prisma, userId, sessionToken: null });
 }
 
 describe('deckRouter.getById', () => {

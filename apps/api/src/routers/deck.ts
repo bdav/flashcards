@@ -1,9 +1,9 @@
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { publicProcedure, router } from './trpc.js';
+import { protectedProcedure, router } from './trpc.js';
 
 export const deckRouter = router({
-  getById: publicProcedure
+  getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const deck = await ctx.prisma.deck.findUnique({
@@ -21,7 +21,7 @@ export const deckRouter = router({
       return deck;
     }),
 
-  list: publicProcedure.query(async ({ ctx }) => {
+  list: protectedProcedure.query(async ({ ctx }) => {
     const decks = await ctx.prisma.deck.findMany({
       where: { userId: ctx.userId },
       orderBy: { createdAt: 'desc' },
@@ -86,7 +86,7 @@ export const deckRouter = router({
     });
   }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(
       z.object({
         name: z.string().min(1),
@@ -103,7 +103,7 @@ export const deckRouter = router({
       });
     }),
 
-  update: publicProcedure
+  update: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -134,7 +134,7 @@ export const deckRouter = router({
       });
     }),
 
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const deck = await ctx.prisma.deck.findUnique({

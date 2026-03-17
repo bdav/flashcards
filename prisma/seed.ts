@@ -1,18 +1,23 @@
 import { prisma } from '../apps/api/src/db.js';
+import { hashPassword } from '../apps/api/src/auth/password.js';
 
 async function main() {
+  const passwordHash = await hashPassword('password');
+
   // Create or find the default dev user
   const user = await prisma.user.upsert({
     where: { id: 'seed-user-dev' },
-    update: {},
+    update: { passwordHash },
     create: {
       id: 'seed-user-dev',
       email: 'dev@example.com',
-      passwordHash: 'placeholder-hash',
+      passwordHash,
     },
   });
 
-  console.log(`Seeded user: ${user.email} (${user.id})`);
+  console.log(
+    `Seeded user: ${user.email} (${user.id}) — password: "password"`,
+  );
 
   // Create a sample deck with cards
   const deck = await prisma.deck.upsert({

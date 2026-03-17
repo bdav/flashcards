@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { publicProcedure, router } from './trpc.js';
+import { protectedProcedure, router } from './trpc.js';
 import { parseCsv } from '../services/csvParser.js';
 
 export const cardRouter = router({
-  create: publicProcedure
+  create: protectedProcedure
     .input(
       z.object({
         deckId: z.string(),
@@ -33,7 +33,7 @@ export const cardRouter = router({
       });
     }),
 
-  listByDeck: publicProcedure
+  listByDeck: protectedProcedure
     .input(z.object({ deckId: z.string() }))
     .query(async ({ ctx, input }) => {
       const deck = await ctx.prisma.deck.findUnique({
@@ -53,7 +53,7 @@ export const cardRouter = router({
       });
     }),
 
-  importCsv: publicProcedure
+  importCsv: protectedProcedure
     .input(
       z.object({
         deckId: z.string(),

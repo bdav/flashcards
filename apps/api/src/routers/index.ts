@@ -1,4 +1,5 @@
 import { publicProcedure, router } from './trpc.js';
+import { authRouter } from './auth.js';
 import { cardRouter } from './card.js';
 import { deckRouter } from './deck.js';
 import { studyRouter } from './study.js';
@@ -10,6 +11,7 @@ export const appRouter = router({
   healthCheck: publicProcedure.query(() => {
     return { ok: true };
   }),
+  auth: authRouter,
   card: cardRouter,
   deck: deckRouter,
   study: studyRouter,

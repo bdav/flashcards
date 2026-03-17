@@ -1,10 +1,10 @@
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { publicProcedure, router } from './trpc.js';
+import { protectedProcedure, router } from './trpc.js';
 import { gradeAnswer } from '../services/answerGrader.js';
 
 export const studyRouter = router({
-  startSession: publicProcedure
+  startSession: protectedProcedure
     .input(z.object({ deckId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const deck = await ctx.prisma.deck.findUnique({
@@ -26,7 +26,7 @@ export const studyRouter = router({
       });
     }),
 
-  submitAttempt: publicProcedure
+  submitAttempt: protectedProcedure
     .input(
       z.object({
         studySessionId: z.string(),
@@ -39,7 +39,7 @@ export const studyRouter = router({
         where: { id: input.studySessionId },
       });
 
-      if (!session) {
+      if (!session || session.userId !== ctx.userId) {
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: 'Study session not found',
@@ -94,14 +94,14 @@ export const studyRouter = router({
       });
     }),
 
-  finishSession: publicProcedure
+  finishSession: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const session = await ctx.prisma.studySession.findUnique({
         where: { id: input.id },
       });
 
-      if (!session) {
+      if (!session || session.userId !== ctx.userId) {
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: 'Study session not found',
@@ -121,7 +121,7 @@ export const studyRouter = router({
       });
     }),
 
-  getSession: publicProcedure
+  getSession: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const session = await ctx.prisma.studySession.findUnique({
@@ -129,7 +129,7 @@ export const studyRouter = router({
         include: { attempts: { orderBy: { createdAt: 'asc' } } },
       });
 
-      if (!session) {
+      if (!session || session.userId !== ctx.userId) {
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: 'Study session not found',
