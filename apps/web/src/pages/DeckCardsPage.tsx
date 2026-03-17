@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,35 +16,69 @@ import {
 
 export default function DeckCardsPage() {
   const { deckId } = useParams<{ deckId: string }>();
+  const navigate = useNavigate();
   const utils = trpc.useUtils();
 
   const [front, setFront] = useState('');
   const [back, setBack] = useState('');
   const [csvError, setCsvError] = useState<string | null>(null);
   const [csvSuccess, setCsvSuccess] = useState<string | null>(null);
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [editFront, setEditFront] = useState('');
+  const [editBack, setEditBack] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const deckQuery = trpc.deck.getById.useQuery(
-    { id: deckId ?? '' },
+    { id: deckId! },
     { enabled: !!deckId },
   );
 
   const cardsQuery = trpc.card.listByDeck.useQuery(
-    { deckId: deckId ?? '' },
+    { deckId: deckId! },
     { enabled: !!deckId },
   );
 
+  const invalidateCards = () =>
+    utils.card.listByDeck.invalidate({ deckId: deckId! });
+
   const createCard = trpc.card.create.useMutation({
     onSuccess: () => {
-      utils.card.listByDeck.invalidate({ deckId: deckId ?? '' });
+      invalidateCards();
       setFront('');
       setBack('');
     },
   });
 
+  const updateCard = trpc.card.update.useMutation({
+    onSuccess: () => {
+      invalidateCards();
+      setEditingCardId(null);
+    },
+  });
+
+  const deleteCard = trpc.card.delete.useMutation({
+    onSuccess: () => {
+      invalidateCards();
+    },
+  });
+
+  const updateDeck = trpc.deck.update.useMutation({
+    onSuccess: () => {
+      utils.deck.getById.invalidate({ id: deckId! });
+      utils.deck.list.invalidate();
+    },
+  });
+
+  const deleteDeck = trpc.deck.delete.useMutation({
+    onSuccess: () => {
+      utils.deck.list.invalidate();
+      navigate('/');
+    },
+  });
+
   const importCsv = trpc.card.importCsv.useMutation({
     onSuccess: (data) => {
-      utils.card.listByDeck.invalidate({ deckId: deckId ?? '' });
+      invalidateCards();
       setCsvError(null);
       setCsvSuccess(`Imported ${data.importedCount} cards.`);
       if (fileInputRef.current) {
@@ -56,6 +90,16 @@ export default function DeckCardsPage() {
       setCsvError(err.message);
     },
   });
+
+  const deck = deckQuery.data;
+
+  if (!deckId) {
+    return (
+      <CenteredPage centered>
+        <p className="text-destructive">No deck ID provided.</p>
+      </CenteredPage>
+    );
+  }
 
   if (deckQuery.isLoading || cardsQuery.isLoading) {
     return (
@@ -73,14 +117,13 @@ export default function DeckCardsPage() {
     );
   }
 
-  const deck = deckQuery.data;
   const cards = cardsQuery.data ?? [];
 
   function handleCsvUpload(file: File) {
     const reader = new FileReader();
     reader.onload = (e) => {
       const csvContent = e.target?.result as string;
-      importCsv.mutate({ deckId: deckId!, csvContent });
+      importCsv.mutate({ deckId, csvContent });
     };
     reader.readAsText(file);
   }
@@ -88,11 +131,7 @@ export default function DeckCardsPage() {
   return (
     <CenteredPage>
       <div className="w-full max-w-2xl text-soft-foreground">
-        <DeckHeader
-          deckName={deck.name}
-          deckId={deckId ?? ''}
-          activeTab="cards"
-        />
+        <DeckHeader deckName={deck.name} deckId={deckId} activeTab="cards" />
 
         <div className="mt-6">
           <h2 className="text-lg font-semibold">Add Card</h2>
@@ -102,7 +141,7 @@ export default function DeckCardsPage() {
               e.preventDefault();
               if (!front.trim() || !back.trim()) return;
               createCard.mutate({
-                deckId: deckId!,
+                deckId,
                 front: front.trim(),
                 back: back.trim(),
               });
@@ -175,20 +214,170 @@ export default function DeckCardsPage() {
                 <TableRow>
                   <TableHead>Front</TableHead>
                   <TableHead>Back</TableHead>
+                  <TableHead className="w-28"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {cards.map((card) => (
                   <TableRow key={card.id}>
-                    <TableCell className="py-3 font-medium">
-                      {card.front}
-                    </TableCell>
-                    <TableCell className="py-3">{card.back}</TableCell>
+                    {editingCardId === card.id ? (
+                      <>
+                        <TableCell className="py-2">
+                          <Input
+                            value={editFront}
+                            onChange={(e) => setEditFront(e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell className="py-2">
+                          <Input
+                            value={editBack}
+                            onChange={(e) => setEditBack(e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell className="py-2">
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                updateCard.mutate({
+                                  cardId: card.id,
+                                  front: editFront.trim(),
+                                  back: editBack.trim(),
+                                });
+                              }}
+                              disabled={!editFront.trim() || !editBack.trim()}
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditingCardId(null)}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </>
+                    ) : (
+                      <>
+                        <TableCell className="py-3 font-medium">
+                          {card.front}
+                        </TableCell>
+                        <TableCell className="py-3">{card.back}</TableCell>
+                        <TableCell className="py-3">
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingCardId(card.id);
+                                setEditFront(card.front);
+                                setEditBack(card.back);
+                              }}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-destructive"
+                              onClick={() => {
+                                if (window.confirm('Delete this card?')) {
+                                  deleteCard.mutate({ cardId: card.id });
+                                }
+                              }}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           )}
+        </div>
+
+        <div className="mt-10 border-t pt-6">
+          <h2 className="text-lg font-semibold">Deck Settings</h2>
+          <form
+            key={`${deck.name}|${deck.description ?? ''}`}
+            className="mt-3 space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!deck) return;
+              const formData = new FormData(e.currentTarget);
+              const name = (formData.get('deckName') as string).trim();
+              const description = (
+                formData.get('deckDescription') as string
+              ).trim();
+              if (!name) return;
+              const data: {
+                id: string;
+                name?: string;
+                description?: string | null;
+              } = {
+                id: deckId,
+              };
+              if (name !== deck.name) {
+                data.name = name;
+              }
+              if (description !== (deck.description ?? '')) {
+                data.description = description || null;
+              }
+              if (data.name !== undefined || data.description !== undefined) {
+                updateDeck.mutate(data);
+              }
+            }}
+          >
+            <div>
+              <label htmlFor="deck-name" className="text-sm font-medium">
+                Deck Name
+              </label>
+              <Input
+                id="deck-name"
+                name="deckName"
+                defaultValue={deck.name}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label htmlFor="deck-description" className="text-sm font-medium">
+                Description
+              </label>
+              <Input
+                id="deck-description"
+                name="deckDescription"
+                defaultValue={deck.description ?? ''}
+                placeholder="Optional description"
+                className="mt-1"
+              />
+            </div>
+            <Button type="submit" disabled={updateDeck.isPending}>
+              Save Changes
+            </Button>
+          </form>
+
+          <div className="mt-6">
+            <Button
+              variant="outline"
+              className="text-destructive"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Are you sure you want to delete "${deck?.name}"? This cannot be undone.`,
+                  )
+                ) {
+                  deleteDeck.mutate({ id: deckId });
+                }
+              }}
+            >
+              Delete Deck
+            </Button>
+          </div>
         </div>
       </div>
     </CenteredPage>

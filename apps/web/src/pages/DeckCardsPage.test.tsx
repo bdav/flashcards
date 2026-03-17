@@ -6,17 +6,31 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import DeckCardsPage from './DeckCardsPage';
 import { trpc } from '@/lib/trpc';
 
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 vi.mock('@/lib/trpc', () => ({
   trpc: {
     useUtils: vi.fn(() => ({
       card: { listByDeck: { invalidate: vi.fn() } },
+      deck: { list: { invalidate: vi.fn() }, getById: { invalidate: vi.fn() } },
     })),
     deck: {
       getById: { useQuery: vi.fn() },
+      update: { useMutation: vi.fn() },
+      delete: { useMutation: vi.fn() },
     },
     card: {
       listByDeck: { useQuery: vi.fn() },
       create: { useMutation: vi.fn() },
+      update: { useMutation: vi.fn() },
+      delete: { useMutation: vi.fn() },
       importCsv: { useMutation: vi.fn() },
     },
   },
@@ -57,6 +71,14 @@ function renderDeckCardsPage(deckId = 'deck-1') {
   );
 }
 
+const defaultMutationReturn = {
+  mutate: vi.fn(),
+  mutateAsync: vi.fn(),
+  isPending: false,
+  isError: false,
+  error: null,
+};
+
 function setupMocks(overrides?: {
   cards?: typeof mockCards | [];
   deckLoading?: boolean;
@@ -86,12 +108,24 @@ function setupMocks(overrides?: {
   } as unknown as ReturnType<typeof trpc.card.create.useMutation>);
 
   vi.mocked(trpc.card.importCsv.useMutation).mockReturnValue({
-    mutate: vi.fn(),
-    mutateAsync: vi.fn(),
-    isPending: false,
-    isError: false,
-    error: null,
+    ...defaultMutationReturn,
   } as unknown as ReturnType<typeof trpc.card.importCsv.useMutation>);
+
+  vi.mocked(trpc.card.update.useMutation).mockReturnValue({
+    ...defaultMutationReturn,
+  } as unknown as ReturnType<typeof trpc.card.update.useMutation>);
+
+  vi.mocked(trpc.card.delete.useMutation).mockReturnValue({
+    ...defaultMutationReturn,
+  } as unknown as ReturnType<typeof trpc.card.delete.useMutation>);
+
+  vi.mocked(trpc.deck.update.useMutation).mockReturnValue({
+    ...defaultMutationReturn,
+  } as unknown as ReturnType<typeof trpc.deck.update.useMutation>);
+
+  vi.mocked(trpc.deck.delete.useMutation).mockReturnValue({
+    ...defaultMutationReturn,
+  } as unknown as ReturnType<typeof trpc.deck.delete.useMutation>);
 }
 
 beforeEach(() => {
@@ -303,5 +337,202 @@ describe('DeckCardsPage', () => {
     ).toBeInTheDocument();
     const cardsTab = screen.getByRole('tab', { name: /cards/i });
     expect(cardsTab).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('renders edit and delete buttons for each card', () => {
+    setupMocks();
+    renderDeckCardsPage();
+
+    const editButtons = screen.getAllByRole('button', { name: /^edit$/i });
+    // Card-level delete buttons (excludes "Delete Deck" which has different text)
+    const cardDeleteButtons = screen.getAllByRole('button', {
+      name: /^delete$/i,
+    });
+    expect(editButtons).toHaveLength(2);
+    expect(cardDeleteButtons).toHaveLength(2);
+  });
+
+  it('enters edit mode when edit button is clicked', async () => {
+    setupMocks();
+    const user = userEvent.setup();
+    renderDeckCardsPage();
+
+    const editButtons = screen.getAllByRole('button', { name: /edit/i });
+    await user.click(editButtons[0]);
+
+    const frontInput = screen.getByDisplayValue('Capital of France');
+    const backInput = screen.getByDisplayValue('Paris');
+    expect(frontInput).toBeInTheDocument();
+    expect(backInput).toBeInTheDocument();
+    // Inline card save button appears (in addition to "Save Changes" for deck)
+    const saveButtons = screen.getAllByRole('button', { name: /^save$/i });
+    expect(saveButtons.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+  });
+
+  it('calls update mutation when save is clicked', async () => {
+    setupMocks();
+    const mockMutate = vi.fn();
+    vi.mocked(trpc.card.update.useMutation).mockReturnValue({
+      ...defaultMutationReturn,
+      mutate: mockMutate,
+    } as unknown as ReturnType<typeof trpc.card.update.useMutation>);
+
+    const user = userEvent.setup();
+    renderDeckCardsPage();
+
+    const editButtons = screen.getAllByRole('button', { name: /edit/i });
+    await user.click(editButtons[0]);
+
+    const frontInput = screen.getByDisplayValue('Capital of France');
+    await user.clear(frontInput);
+    await user.type(frontInput, 'Capital of Italy');
+
+    const saveButtons = screen.getAllByRole('button', { name: /save/i });
+    // First save button is the inline card save
+    await user.click(saveButtons[0]);
+
+    expect(mockMutate).toHaveBeenCalledWith({
+      cardId: 'card-1',
+      front: 'Capital of Italy',
+      back: 'Paris',
+    });
+  });
+
+  it('cancels edit and restores original values', async () => {
+    setupMocks();
+    const user = userEvent.setup();
+    renderDeckCardsPage();
+
+    const editButtons = screen.getAllByRole('button', { name: /edit/i });
+    await user.click(editButtons[0]);
+
+    const frontInput = screen.getByDisplayValue('Capital of France');
+    await user.clear(frontInput);
+    await user.type(frontInput, 'Something else');
+
+    const cancelButton = screen.getByRole('button', { name: /cancel/i });
+    await user.click(cancelButton);
+
+    expect(screen.getByText('Capital of France')).toBeInTheDocument();
+    expect(
+      screen.queryByDisplayValue('Something else'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('calls delete mutation when delete is confirmed', async () => {
+    setupMocks();
+    const mockMutate = vi.fn();
+    vi.mocked(trpc.card.delete.useMutation).mockReturnValue({
+      ...defaultMutationReturn,
+      mutate: mockMutate,
+    } as unknown as ReturnType<typeof trpc.card.delete.useMutation>);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    const user = userEvent.setup();
+    renderDeckCardsPage();
+
+    const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+    await user.click(deleteButtons[0]);
+
+    expect(window.confirm).toHaveBeenCalled();
+    expect(mockMutate).toHaveBeenCalledWith({ cardId: 'card-1' });
+  });
+
+  it('does not delete when confirmation is cancelled', async () => {
+    setupMocks();
+    const mockMutate = vi.fn();
+    vi.mocked(trpc.card.delete.useMutation).mockReturnValue({
+      ...defaultMutationReturn,
+      mutate: mockMutate,
+    } as unknown as ReturnType<typeof trpc.card.delete.useMutation>);
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    const user = userEvent.setup();
+    renderDeckCardsPage();
+
+    const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+    await user.click(deleteButtons[0]);
+
+    expect(window.confirm).toHaveBeenCalled();
+    expect(mockMutate).not.toHaveBeenCalled();
+  });
+
+  it('renders deck edit form with name and description', () => {
+    setupMocks();
+    renderDeckCardsPage();
+
+    expect(
+      screen.getByRole('heading', { name: /deck settings/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/deck name/i)).toHaveValue('World Capitals');
+    expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
+  });
+
+  it('calls deck update mutation when deck name is changed', async () => {
+    setupMocks();
+    const mockMutate = vi.fn();
+    vi.mocked(trpc.deck.update.useMutation).mockReturnValue({
+      ...defaultMutationReturn,
+      mutate: mockMutate,
+    } as unknown as ReturnType<typeof trpc.deck.update.useMutation>);
+
+    const user = userEvent.setup();
+    renderDeckCardsPage();
+
+    const nameInput = screen.getByLabelText(/deck name/i);
+    await user.clear(nameInput);
+    await user.type(nameInput, 'European Capitals');
+    await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+    expect(mockMutate).toHaveBeenCalledWith({
+      id: 'deck-1',
+      name: 'European Capitals',
+    });
+  });
+
+  it('calls deck delete and navigates home when confirmed', async () => {
+    setupMocks();
+    const mockMutate = vi.fn();
+    vi.mocked(trpc.deck.delete.useMutation).mockImplementation(
+      (opts?: { onSuccess?: () => void }) => {
+        return {
+          ...defaultMutationReturn,
+          mutate: vi.fn((...args: unknown[]) => {
+            mockMutate(...args);
+            opts?.onSuccess?.();
+          }),
+        } as unknown as ReturnType<typeof trpc.deck.delete.useMutation>;
+      },
+    );
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    const user = userEvent.setup();
+    renderDeckCardsPage();
+
+    await user.click(screen.getByRole('button', { name: /delete deck/i }));
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      expect.stringContaining('delete'),
+    );
+    expect(mockMutate).toHaveBeenCalledWith({ id: 'deck-1' });
+    expect(mockNavigate).toHaveBeenCalledWith('/');
+  });
+
+  it('does not delete deck when confirmation is cancelled', async () => {
+    setupMocks();
+    const mockMutate = vi.fn();
+    vi.mocked(trpc.deck.delete.useMutation).mockReturnValue({
+      ...defaultMutationReturn,
+      mutate: mockMutate,
+    } as unknown as ReturnType<typeof trpc.deck.delete.useMutation>);
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    const user = userEvent.setup();
+    renderDeckCardsPage();
+
+    await user.click(screen.getByRole('button', { name: /delete deck/i }));
+
+    expect(mockMutate).not.toHaveBeenCalled();
   });
 });
