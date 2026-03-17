@@ -118,6 +118,8 @@ export default function StudyPage() {
   const cardQueue = useCardQueue(cards);
   const {
     studyState,
+    isFlipped,
+    toggleFlip,
     answerInput,
     setAnswerInput,
     error,
@@ -144,18 +146,6 @@ export default function StudyPage() {
   const progress = isReviewing
     ? undefined
     : `${cardQueue.cardsStudied + 1} / ${cardQueue.cardsStudied + cardQueue.queue.length}`;
-
-  // Flip state: derived from phase, with optional manual override (flip button).
-  // When manualFlipOverride is null, isFlipped follows the phase naturally.
-  // The flip CSS transition fires when isFlipped changes on a mounted CardStack
-  // (e.g. answering→result). During slides, the key changes so the CardStack
-  // remounts and no transition fires regardless.
-  const [manualFlipOverride, setManualFlipOverride] = useState<boolean | null>(
-    null,
-  );
-  const naturalFlipped =
-    studyState.phase === 'result' || studyState.phase === 'reviewing';
-  const isFlipped = manualFlipOverride ?? naturalFlipped;
 
   const [slideKey, setSlideKey] = useState(0);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(
@@ -198,7 +188,6 @@ export default function StudyPage() {
     setExitingCard(displayRef.current);
     setSlideDirection('left');
     setSlideKey((k) => k + 1);
-    setManualFlipOverride(null);
     if (isReviewing) handleForward();
     else handleNext();
   }, [isReviewing, handleForward, handleNext]);
@@ -207,7 +196,6 @@ export default function StudyPage() {
     setExitingCard(displayRef.current);
     setSlideDirection('right');
     setSlideKey((k) => k + 1);
-    setManualFlipOverride(null);
     handleBack();
   }, [handleBack]);
 
@@ -360,9 +348,6 @@ export default function StudyPage() {
       />
     </CardStack>
   );
-
-  const toggleFlip = () =>
-    setManualFlipOverride((prev) => !(prev ?? naturalFlipped));
 
   return (
     <CenteredPage>

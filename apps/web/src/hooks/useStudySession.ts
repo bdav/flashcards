@@ -17,10 +17,12 @@ type StudyState =
       phase: 'result';
       result: 'correct' | 'incorrect';
       userAnswer: string;
+      showingBack: boolean;
     }
   | {
       phase: 'reviewing';
       reviewIndex: number;
+      showingBack: boolean;
     }
   | { phase: 'complete' };
 
@@ -80,6 +82,7 @@ export function useStudySession(
         phase: 'result',
         result: attempt.result,
         userAnswer: answerInput,
+        showingBack: true,
       });
     } catch {
       setError('Failed to submit answer. Please try again.');
@@ -113,6 +116,7 @@ export function useStudySession(
       setStudyState({
         phase: 'reviewing',
         reviewIndex: history.length - 1,
+        showingBack: true,
       });
     } else if (studyState.phase === 'answering' && history.length === 0) {
       setStudyState({ phase: 'idle' });
@@ -120,6 +124,7 @@ export function useStudySession(
       setStudyState({
         phase: 'reviewing',
         reviewIndex: history.length - 2,
+        showingBack: true,
       });
     } else if (studyState.phase === 'result' && history.length === 1) {
       setStudyState({ phase: 'idle' });
@@ -127,6 +132,7 @@ export function useStudySession(
       setStudyState({
         phase: 'reviewing',
         reviewIndex: studyState.reviewIndex - 1,
+        showingBack: true,
       });
     } else if (
       studyState.phase === 'reviewing' &&
@@ -143,6 +149,7 @@ export function useStudySession(
       setStudyState({
         phase: 'reviewing',
         reviewIndex: studyState.reviewIndex + 1,
+        showingBack: true,
       });
     } else {
       // Return to current card (answering or result)
@@ -161,6 +168,7 @@ export function useStudySession(
           phase: 'result',
           result: lastEntry.result,
           userAnswer: lastEntry.userAnswer,
+          showingBack: true,
         });
       }
     }
@@ -176,8 +184,23 @@ export function useStudySession(
       ? history[studyState.reviewIndex]
       : undefined;
 
+  const isFlipped =
+    (studyState.phase === 'result' || studyState.phase === 'reviewing') &&
+    studyState.showingBack;
+
+  const toggleFlip = useCallback(() => {
+    setStudyState((prev) => {
+      if (prev.phase === 'result' || prev.phase === 'reviewing') {
+        return { ...prev, showingBack: !prev.showingBack };
+      }
+      return prev;
+    });
+  }, []);
+
   return {
     studyState,
+    isFlipped,
+    toggleFlip,
     answerInput,
     setAnswerInput,
     error,
