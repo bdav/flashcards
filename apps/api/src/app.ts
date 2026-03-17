@@ -7,8 +7,10 @@ import { createContext } from './context.js';
 
 const app = express();
 
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
-app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
+const corsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN
+  : /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
