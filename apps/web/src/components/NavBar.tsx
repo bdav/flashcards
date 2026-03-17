@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Home, BarChart3, LogOut } from 'lucide-react';
+import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
 
 export function NavBar() {
@@ -9,6 +10,9 @@ export function NavBar() {
     onSuccess: () => {
       utils.auth.me.invalidate();
       navigate('/login');
+    },
+    onError: () => {
+      toast.error('Failed to log out');
     },
   });
 

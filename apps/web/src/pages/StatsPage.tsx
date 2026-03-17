@@ -1,5 +1,6 @@
 import { trpc } from '@/lib/trpc';
 import { CenteredPage } from '@/components/CenteredPage';
+import { StatsSkeleton } from '@/components/PageSkeleton';
 import { StatCard } from '@/components/StatCard';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatPercent } from '@/lib/format';
@@ -8,11 +9,7 @@ export default function StatsPage() {
   const statsQuery = trpc.stats.overallStats.useQuery();
 
   if (statsQuery.isLoading) {
-    return (
-      <CenteredPage centered>
-        <p className="text-muted-foreground">Loading stats...</p>
-      </CenteredPage>
-    );
+    return <StatsSkeleton />;
   }
 
   if (statsQuery.isError) {

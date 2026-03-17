@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { CenteredPage } from '@/components/CenteredPage';
+import { DeckListSkeleton } from '@/components/PageSkeleton';
 import { formatPercent } from '@/lib/format';
 
 export default function DeckListPage() {
@@ -16,14 +18,13 @@ export default function DeckListPage() {
     onSuccess: () => {
       utils.deck.list.invalidate();
     },
+    onError: () => {
+      toast.error('Failed to create deck');
+    },
   });
 
   if (decksQuery.isLoading) {
-    return (
-      <CenteredPage centered>
-        <p className="text-muted-foreground">Loading decks...</p>
-      </CenteredPage>
-    );
+    return <DeckListSkeleton />;
   }
 
   if (decksQuery.isError) {

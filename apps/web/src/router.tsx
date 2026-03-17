@@ -8,21 +8,26 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { RouteErrorFallback } from './components/RouteErrorFallback';
 
 export const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+    errorElement: <RouteErrorFallback />,
   },
   {
     path: '/signup',
     element: <SignupPage />,
+    errorElement: <RouteErrorFallback />,
   },
   {
     element: <ProtectedRoute />,
+    errorElement: <RouteErrorFallback />,
     children: [
       {
         element: <Layout />,
+        errorElement: <RouteErrorFallback />,
         children: [
           {
             path: '/',

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ChevronLeft, ChevronRight, CornerDownLeft } from 'lucide-react';
 import { CardStack } from '@/components/CardStack';
 import { CenteredPage } from '@/components/CenteredPage';
+import { StudySkeleton } from '@/components/PageSkeleton';
 import { useCardQueue } from '@/hooks/useCardQueue';
 import { useStudySession } from '@/hooks/useStudySession';
 import { DeckHeader } from '@/components/DeckHeader';
@@ -44,11 +45,7 @@ export default function StudyPage() {
   } = useStudySession(deckId, cardQueue);
 
   if (deckQuery.isLoading) {
-    return (
-      <CenteredPage centered>
-        <p className="text-muted-foreground">Loading deck...</p>
-      </CenteredPage>
-    );
+    return <StudySkeleton />;
   }
 
   if (deckQuery.isError || !deck) {

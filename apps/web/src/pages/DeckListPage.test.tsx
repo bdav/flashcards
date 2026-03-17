@@ -122,7 +122,9 @@ describe('DeckListPage', () => {
     setupMocks({ data: undefined, isLoading: true });
     renderDeckListPage();
 
-    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('status', { name: /loading/i }),
+    ).toBeInTheDocument();
   });
 
   it('shows error state', () => {

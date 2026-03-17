@@ -1,10 +1,18 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toast } from 'sonner';
 import { vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import DeckCardsPage from './DeckCardsPage';
 import { trpc } from '@/lib/trpc';
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -161,7 +169,9 @@ describe('DeckCardsPage', () => {
     setupMocks({ deckLoading: true });
     renderDeckCardsPage();
 
-    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('status', { name: /loading/i }),
+    ).toBeInTheDocument();
   });
 
   it('shows error state when deck fails to load', () => {
@@ -262,7 +272,7 @@ describe('DeckCardsPage', () => {
     });
   });
 
-  it('shows success message after CSV import', async () => {
+  it('shows success toast after CSV import', async () => {
     setupMocks();
     let onSuccessCallback:
       | ((data: { importedCount: number }) => void)
@@ -291,7 +301,7 @@ describe('DeckCardsPage', () => {
     await user.upload(screen.getByTestId('csv-file-input'), file);
 
     await vi.waitFor(() => {
-      expect(screen.getByText(/imported 3 cards/i)).toBeInTheDocument();
+      expect(toast.success).toHaveBeenCalledWith('Imported 3 cards');
     });
   });
 

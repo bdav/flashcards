@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CenteredPage } from '@/components/CenteredPage';
 import { DeckHeader } from '@/components/DeckHeader';
+import { DeckCardsSkeleton } from '@/components/PageSkeleton';
 import {
   Table,
   TableBody,
@@ -22,7 +24,6 @@ export default function DeckCardsPage() {
   const [front, setFront] = useState('');
   const [back, setBack] = useState('');
   const [csvError, setCsvError] = useState<string | null>(null);
-  const [csvSuccess, setCsvSuccess] = useState<string | null>(null);
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [editFront, setEditFront] = useState('');
   const [editBack, setEditBack] = useState('');
@@ -47,6 +48,9 @@ export default function DeckCardsPage() {
       setFront('');
       setBack('');
     },
+    onError: () => {
+      toast.error('Failed to add card');
+    },
   });
 
   const updateCard = trpc.card.update.useMutation({
@@ -54,11 +58,17 @@ export default function DeckCardsPage() {
       invalidateCards();
       setEditingCardId(null);
     },
+    onError: () => {
+      toast.error('Failed to update card');
+    },
   });
 
   const deleteCard = trpc.card.delete.useMutation({
     onSuccess: () => {
       invalidateCards();
+    },
+    onError: () => {
+      toast.error('Failed to delete card');
     },
   });
 
@@ -66,13 +76,21 @@ export default function DeckCardsPage() {
     onSuccess: () => {
       utils.deck.getById.invalidate({ id: deckId! });
       utils.deck.list.invalidate();
+      toast.success('Deck updated');
+    },
+    onError: () => {
+      toast.error('Failed to update deck');
     },
   });
 
   const deleteDeck = trpc.deck.delete.useMutation({
     onSuccess: () => {
       utils.deck.list.invalidate();
+      toast.success('Deck deleted');
       navigate('/');
+    },
+    onError: () => {
+      toast.error('Failed to delete deck');
     },
   });
 
@@ -80,13 +98,12 @@ export default function DeckCardsPage() {
     onSuccess: (data) => {
       invalidateCards();
       setCsvError(null);
-      setCsvSuccess(`Imported ${data.importedCount} cards.`);
+      toast.success(`Imported ${data.importedCount} cards`);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     },
     onError: (err) => {
-      setCsvSuccess(null);
       setCsvError(err.message);
     },
   });
@@ -102,11 +119,7 @@ export default function DeckCardsPage() {
   }
 
   if (deckQuery.isLoading || cardsQuery.isLoading) {
-    return (
-      <CenteredPage centered>
-        <p className="text-muted-foreground">Loading cards...</p>
-      </CenteredPage>
-    );
+    return <DeckCardsSkeleton />;
   }
 
   if (deckQuery.isError || !deckQuery.data) {
@@ -188,7 +201,6 @@ export default function DeckCardsPage() {
                 const file = e.target.files?.[0];
                 if (file) {
                   setCsvError(null);
-                  setCsvSuccess(null);
                   handleCsvUpload(file);
                 }
               }}
@@ -196,9 +208,6 @@ export default function DeckCardsPage() {
           </div>
           {csvError && (
             <p className="mt-2 text-sm text-destructive">{csvError}</p>
-          )}
-          {csvSuccess && (
-            <p className="mt-2 text-sm text-green-600">{csvSuccess}</p>
           )}
         </div>
 

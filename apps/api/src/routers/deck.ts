@@ -35,36 +35,34 @@ export const deckRouter = router({
       },
     });
 
-    // Fetch attempt stats per deck in a single query per deck
-    // (accuracy aggregation can be optimized further in PR 15)
+    // Fetch attempt stats per deck in a single query
     const deckIds = decks.map((d) => d.id);
-    const attempts =
-      deckIds.length > 0
-        ? await ctx.prisma.cardAttempt.findMany({
-            where: {
-              studySession: {
-                deckId: { in: deckIds },
-                userId: ctx.userId,
-              },
-            },
-            select: {
-              result: true,
-              studySession: { select: { deckId: true } },
-            },
-          })
-        : [];
-
-    // Group attempts by deck
     const attemptsByDeck = new Map<
       string,
       { total: number; correct: number }
     >();
-    for (const attempt of attempts) {
-      const did = attempt.studySession.deckId;
-      const stats = attemptsByDeck.get(did) ?? { total: 0, correct: 0 };
-      stats.total++;
-      if (attempt.result === 'correct') stats.correct++;
-      attemptsByDeck.set(did, stats);
+
+    if (deckIds.length > 0) {
+      const attempts = await ctx.prisma.cardAttempt.findMany({
+        where: {
+          studySession: {
+            deckId: { in: deckIds },
+            userId: ctx.userId,
+          },
+        },
+        select: {
+          result: true,
+          studySession: { select: { deckId: true } },
+        },
+      });
+
+      for (const attempt of attempts) {
+        const did = attempt.studySession.deckId;
+        const stats = attemptsByDeck.get(did) ?? { total: 0, correct: 0 };
+        stats.total++;
+        if (attempt.result === 'correct') stats.correct++;
+        attemptsByDeck.set(did, stats);
+      }
     }
 
     return decks.map((deck) => {

@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom';
 import { trpc } from '@/lib/trpc';
 import { CenteredPage } from '@/components/CenteredPage';
 import { DeckHeader } from '@/components/DeckHeader';
+import { StatsSkeleton } from '@/components/PageSkeleton';
 import { StatCard } from '@/components/StatCard';
 import {
   Table,
@@ -28,11 +29,7 @@ export default function DeckStatsPage() {
   const deckName = deckQuery.data?.name ?? 'Deck';
 
   if (statsQuery.isLoading || deckQuery.isLoading) {
-    return (
-      <CenteredPage centered>
-        <p className="text-muted-foreground">Loading stats...</p>
-      </CenteredPage>
-    );
+    return <StatsSkeleton />;
   }
 
   if (statsQuery.isError) {

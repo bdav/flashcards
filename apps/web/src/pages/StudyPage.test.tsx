@@ -498,7 +498,9 @@ describe('StudyPage', () => {
     } as ReturnType<typeof trpc.deck.getById.useQuery>);
 
     renderStudyPage();
-    expect(screen.getByText(/loading deck/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('status', { name: /loading/i }),
+    ).toBeInTheDocument();
   });
 
   describe('review navigation', () => {

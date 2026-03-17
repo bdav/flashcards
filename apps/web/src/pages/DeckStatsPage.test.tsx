@@ -103,7 +103,9 @@ describe('DeckStatsPage', () => {
     setupMocks({ data: undefined, isLoading: true });
     renderDeckStatsPage();
 
-    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('status', { name: /loading/i }),
+    ).toBeInTheDocument();
   });
 
   it('shows error state', () => {
