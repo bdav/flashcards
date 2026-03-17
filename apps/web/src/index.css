@@ -10,43 +10,31 @@
 .bg-ocean-gradient {
   background-color: oklch(0.28 0.1 230);
   background-image:
-    /* mountain core — large lighter wedge rising from bottom center to peak */
-    radial-gradient(
-      ellipse 70% 100% at 50% 110%,
-      oklch(0.4 0.13 220) 0%,
-      oklch(0.34 0.12 225) 30%,
-      transparent 65%
-    ),
-    /* left slope — ascending edge of the mountain */
-    radial-gradient(
-        ellipse 50% 80% at 25% 85%,
-        oklch(0.36 0.13 222) 0%,
-        transparent 60%
-      ),
-    /* right slope — descending edge */
-    radial-gradient(
-        ellipse 50% 80% at 75% 85%,
-        oklch(0.34 0.12 226) 0%,
-        transparent 60%
-      ),
-    /* peak glow — brightest point at the apex */
-    radial-gradient(
-        ellipse 35% 30% at 50% 35%,
-        oklch(0.42 0.13 218) 0%,
-        transparent 70%
-      ),
-    /* left curl — sweeps out at upper left */
-    radial-gradient(
-        ellipse 30% 40% at 15% 45%,
-        oklch(0.32 0.11 232) 0%,
-        transparent 70%
-      ),
-    /* right curl — sweeps out at upper right */
-    radial-gradient(
-        ellipse 30% 40% at 88% 40%,
-        oklch(0.3 0.11 228) 0%,
-        transparent 70%
-      );
+    /* gentle sine-wave bands at ~30°: smooth light↔dark undulation */ linear-gradient(
+    120deg,
+    oklch(0.4 0.12 218) 0%,
+    oklch(0.39 0.12 220) 4%,
+    oklch(0.37 0.11 222) 8%,
+    oklch(0.35 0.11 225) 12%,
+    oklch(0.33 0.1 228) 17%,
+    oklch(0.32 0.1 230) 22%,
+    oklch(0.33 0.1 228) 27%,
+    oklch(0.35 0.11 225) 32%,
+    oklch(0.37 0.11 222) 36%,
+    oklch(0.39 0.12 220) 40%,
+    oklch(0.4 0.12 218) 44%,
+    oklch(0.4 0.12 218) 50%,
+    oklch(0.39 0.12 220) 54%,
+    oklch(0.37 0.11 222) 58%,
+    oklch(0.35 0.11 225) 62%,
+    oklch(0.33 0.1 228) 67%,
+    oklch(0.32 0.1 230) 72%,
+    oklch(0.33 0.1 228) 77%,
+    oklch(0.35 0.11 225) 82%,
+    oklch(0.37 0.11 222) 86%,
+    oklch(0.39 0.12 220) 92%,
+    oklch(0.4 0.12 218) 100%
+  );
 }
 
 button {
