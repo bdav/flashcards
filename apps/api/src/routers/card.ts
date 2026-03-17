@@ -33,6 +33,62 @@ export const cardRouter = router({
       });
     }),
 
+  update: protectedProcedure
+    .input(
+      z
+        .object({
+          cardId: z.string(),
+          front: z.string().trim().min(1).optional(),
+          back: z.string().trim().min(1).optional(),
+        })
+        .refine((d) => d.front !== undefined || d.back !== undefined, {
+          message: 'At least one of front or back must be provided',
+        }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const card = await ctx.prisma.card.findUnique({
+        where: { id: input.cardId },
+        include: { deck: { select: { userId: true } } },
+      });
+
+      if (!card || card.deck.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Card not found',
+        });
+      }
+
+      return ctx.prisma.card.update({
+        where: { id: input.cardId },
+        data: {
+          ...(input.front !== undefined && { front: input.front }),
+          ...(input.back !== undefined && { back: input.back }),
+        },
+      });
+    }),
+
+  delete: protectedProcedure
+    .input(z.object({ cardId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const card = await ctx.prisma.card.findUnique({
+        where: { id: input.cardId },
+        include: { deck: { select: { userId: true } } },
+      });
+
+      if (!card || card.deck.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Card not found',
+        });
+      }
+
+      await ctx.prisma.card.delete({
+        where: { id: input.cardId },
+      });
+
+      return { success: true };
+    }),
+
   listByDeck: protectedProcedure
     .input(z.object({ deckId: z.string() }))
     .query(async ({ ctx, input }) => {

@@ -204,6 +204,240 @@ describe('cardRouter', () => {
     });
   });
 
+  describe('update', () => {
+    it('updates a card front and back', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Test Deck',
+          userId,
+          cards: { create: [{ front: 'Old Q', back: 'Old A' }] },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      const updated = await caller.card.update({
+        cardId: deck.cards[0].id,
+        front: 'New Q',
+        back: 'New A',
+      });
+
+      expect(updated.front).toBe('New Q');
+      expect(updated.back).toBe('New A');
+    });
+
+    it('supports partial update (only front)', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Test Deck',
+          userId,
+          cards: { create: [{ front: 'Old Q', back: 'Old A' }] },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      const updated = await caller.card.update({
+        cardId: deck.cards[0].id,
+        front: 'New Q',
+      });
+
+      expect(updated.front).toBe('New Q');
+      expect(updated.back).toBe('Old A');
+    });
+
+    it('supports partial update (only back)', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Test Deck',
+          userId,
+          cards: { create: [{ front: 'Old Q', back: 'Old A' }] },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      const updated = await caller.card.update({
+        cardId: deck.cards[0].id,
+        back: 'New A',
+      });
+
+      expect(updated.front).toBe('Old Q');
+      expect(updated.back).toBe('New A');
+    });
+
+    it('rejects update on a card belonging to another user', async () => {
+      const otherDeck = await prisma.deck.create({
+        data: {
+          name: 'Other Deck',
+          userId: otherUserId,
+          cards: { create: [{ front: 'Q', back: 'A' }] },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      await expect(
+        caller.card.update({
+          cardId: otherDeck.cards[0].id,
+          front: 'Hacked',
+        }),
+      ).rejects.toThrow(/not found/i);
+    });
+
+    it('rejects update on a nonexistent card', async () => {
+      const caller = createCaller();
+      await expect(
+        caller.card.update({
+          cardId: 'nonexistent',
+          front: 'Q',
+        }),
+      ).rejects.toThrow(/not found/i);
+    });
+
+    it('rejects empty front when provided', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Test Deck',
+          userId,
+          cards: { create: [{ front: 'Q', back: 'A' }] },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      await expect(
+        caller.card.update({
+          cardId: deck.cards[0].id,
+          front: '',
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('rejects empty back when provided', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Test Deck',
+          userId,
+          cards: { create: [{ front: 'Q', back: 'A' }] },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      await expect(
+        caller.card.update({
+          cardId: deck.cards[0].id,
+          back: '',
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('trims whitespace from front and back', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Test Deck',
+          userId,
+          cards: { create: [{ front: 'Q', back: 'A' }] },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      const updated = await caller.card.update({
+        cardId: deck.cards[0].id,
+        front: '  New Q  ',
+        back: '  New A  ',
+      });
+
+      expect(updated.front).toBe('New Q');
+      expect(updated.back).toBe('New A');
+    });
+
+    it('rejects update with neither front nor back', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Test Deck',
+          userId,
+          cards: { create: [{ front: 'Q', back: 'A' }] },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      await expect(
+        caller.card.update({ cardId: deck.cards[0].id }),
+      ).rejects.toThrow(/at least one/i);
+    });
+  });
+
+  describe('delete', () => {
+    it('deletes a card', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Test Deck',
+          userId,
+          cards: { create: [{ front: 'Q', back: 'A' }] },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      await caller.card.delete({ cardId: deck.cards[0].id });
+
+      const cards = await prisma.card.findMany({
+        where: { deckId: deck.id },
+      });
+      expect(cards).toHaveLength(0);
+    });
+
+    it('rejects deletion of a card belonging to another user', async () => {
+      const otherDeck = await prisma.deck.create({
+        data: {
+          name: 'Other Deck',
+          userId: otherUserId,
+          cards: { create: [{ front: 'Q', back: 'A' }] },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      await expect(
+        caller.card.delete({ cardId: otherDeck.cards[0].id }),
+      ).rejects.toThrow(/not found/i);
+    });
+
+    it('rejects deletion of a nonexistent card', async () => {
+      const caller = createCaller();
+      await expect(
+        caller.card.delete({ cardId: 'nonexistent' }),
+      ).rejects.toThrow(/not found/i);
+    });
+
+    it('deleted card is no longer returned by listByDeck', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Test Deck',
+          userId,
+          cards: {
+            create: [
+              { front: 'Q1', back: 'A1' },
+              { front: 'Q2', back: 'A2' },
+            ],
+          },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      await caller.card.delete({ cardId: deck.cards[0].id });
+
+      const cards = await caller.card.listByDeck({ deckId: deck.id });
+      expect(cards).toHaveLength(1);
+      expect(cards[0].front).toBe('Q2');
+    });
+  });
+
   describe('importCsv', () => {
     it('imports cards from valid CSV into a deck', async () => {
       const deck = await prisma.deck.create({
