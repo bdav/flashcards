@@ -1233,7 +1233,67 @@ standalone `/import` page concept. Cards are managed in context of their deck.
 
 ---
 
-### PR 15: Polish — Loading, Empty, and Error States
+### PR 15: Card Update & Delete — Backend
+
+**Scope:** Add `card.update` and `card.delete` procedures to the card router.
+
+**TDD Sequence — write tests first for:**
+
+1. updating a card's front and back text
+2. partial update (only front or only back)
+3. rejects update on a card belonging to another user's deck
+4. rejects update on a nonexistent card
+5. rejects empty front or back when provided
+6. deleting a card
+7. rejects deletion of a card belonging to another user's deck
+8. rejects deletion of a nonexistent card
+9. deleted card is no longer returned by listByDeck
+
+**Tasks:**
+
+- add `card.update` mutation to `cardRouter` (input: cardId, optional front, optional back)
+- add `card.delete` mutation to `cardRouter` (input: cardId)
+- ownership validation (card's deck must belong to current user)
+- input validation (front and back must be non-empty when provided)
+
+**Definition of Done:**
+
+- all card.update and card.delete tests pass
+- ownership is enforced for both procedures
+
+---
+
+### PR 16: Card & Deck Management — Frontend
+
+**Scope:** Add edit/delete UI for cards and decks. Cards are managed from the
+existing Cards tab; deck edit/delete is accessible from the deck view.
+
+**Tasks:**
+
+- add inline edit and delete actions to the card table on DeckCardsPage
+- card edit: click to edit front/back in-place, save calls `card.update`, cancel restores original
+- card delete: delete button with confirmation, calls `card.delete`
+- add deck edit (rename/description) UI accessible from the deck view
+- add deck delete with confirmation, calls `deck.delete`, redirects to home
+- wire TanStack Query invalidation for all mutations
+
+**Tests:**
+
+- card edit saves changes and refreshes the list
+- card delete removes the card and refreshes the list
+- deck edit updates the deck name
+- deck delete removes the deck and redirects to home
+- confirmation is required before deleting a deck
+
+**Definition of Done:**
+
+- user can edit and delete individual cards from the Cards tab
+- user can rename and delete a deck
+- all mutations invalidate relevant queries
+
+---
+
+### PR 17: Polish — Loading, Empty, and Error States
 
 **Scope:** Improve UX across all pages. Address known performance concerns.
 
@@ -1253,7 +1313,7 @@ standalone `/import` page concept. Cards are managed in context of their deck.
 
 ---
 
-### PR 16: Seed Data and Documentation
+### PR 18: Seed Data and Documentation
 
 **Scope:** Make the app easy to set up and demo.
 
