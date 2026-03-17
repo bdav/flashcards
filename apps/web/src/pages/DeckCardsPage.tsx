@@ -174,8 +174,6 @@ export default function DeckCardsPage() {
     },
   });
 
-  const deck = deckQuery.data;
-
   if (!deckId) {
     return (
       <CenteredPage centered>
@@ -196,13 +194,14 @@ export default function DeckCardsPage() {
     );
   }
 
+  const deck = deckQuery.data;
   const cards = cardsQuery.data ?? [];
 
   function handleCsvUpload(file: File) {
     const reader = new FileReader();
     reader.onload = (e) => {
       const csvContent = e.target?.result as string;
-      importCsv.mutate({ deckId, csvContent });
+      importCsv.mutate({ deckId: deckId!, csvContent });
     };
     reader.readAsText(file);
   }
@@ -226,8 +225,27 @@ export default function DeckCardsPage() {
           )}
         </p>
 
+        <div className="flex justify-end mr-4">
+          <button
+            className="inline-flex items-center text-sm text-white/40 hover:text-destructive transition-colors"
+            title="Delete deck"
+            onClick={() => {
+              if (
+                window.confirm(
+                  `Are you sure you want to delete "${deck?.name}"? This cannot be undone.`,
+                )
+              ) {
+                deleteDeck.mutate({ id: deckId });
+              }
+            }}
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            Delete Deck
+          </button>
+        </div>
+
         {/* Card Grid */}
-        <div className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-3">
+        <div className="mt-2 grid grid-cols-2 gap-6 sm:grid-cols-3">
           {/* New Card button / form */}
           {isCreating ? (
             <DeckCard stackCount={0}>
@@ -391,26 +409,6 @@ export default function DeckCardsPage() {
               }
             />
           ))}
-        </div>
-
-        {/* Danger Zone */}
-        <div className="mt-10 border-t border-white/20 pt-6">
-          <Button
-            variant="outline"
-            className="text-destructive"
-            onClick={() => {
-              if (
-                window.confirm(
-                  `Are you sure you want to delete "${deck?.name}"? This cannot be undone.`,
-                )
-              ) {
-                deleteDeck.mutate({ id: deckId });
-              }
-            }}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete Deck
-          </Button>
         </div>
       </div>
     </CenteredPage>
