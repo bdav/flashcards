@@ -9,7 +9,14 @@ export function AppProviders({ children }: PropsWithChildren) {
   const [queryClient] = useState(() => new QueryClient());
   const [trpcClient] = useState(() =>
     trpc.createClient({
-      links: [httpBatchLink({ url: API_URL })],
+      links: [
+        httpBatchLink({
+          url: API_URL,
+          fetch(url, options) {
+            return fetch(url, { ...options, credentials: 'include' });
+          },
+        }),
+      ],
     }),
   );
 
