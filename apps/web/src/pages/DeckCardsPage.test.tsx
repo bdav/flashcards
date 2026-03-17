@@ -248,11 +248,19 @@ describe('DeckCardsPage', () => {
     expect(mockMutate).not.toHaveBeenCalled();
   });
 
-  it('renders CSV file input', () => {
+  it('shows Import CSV tile that opens form with instructions', async () => {
     setupMocks();
+    const user = userEvent.setup();
     renderDeckCardsPage();
 
-    expect(screen.getByTestId('csv-file-input')).toBeInTheDocument();
+    expect(screen.getByText('Import CSV')).toBeInTheDocument();
+    await user.click(screen.getByText('Import CSV'));
+
+    expect(screen.getByText(/front/)).toBeInTheDocument();
+    expect(screen.getByText(/back/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /choose file/i }),
+    ).toBeInTheDocument();
   });
 
   it('calls importCsv mutation when CSV file is uploaded', async () => {
@@ -270,6 +278,8 @@ describe('DeckCardsPage', () => {
 
     const user = userEvent.setup();
     renderDeckCardsPage();
+
+    await user.click(screen.getByText('Import CSV'));
 
     const csvContent = 'front,back\nCapital of Spain,Madrid\n';
     const file = new File([csvContent], 'cards.csv', { type: 'text/csv' });
@@ -308,6 +318,8 @@ describe('DeckCardsPage', () => {
     const user = userEvent.setup();
     renderDeckCardsPage();
 
+    await user.click(screen.getByText('Import CSV'));
+
     const file = new File(['front,back\na,b\n'], 'cards.csv', {
       type: 'text/csv',
     });
@@ -338,6 +350,8 @@ describe('DeckCardsPage', () => {
 
     const user = userEvent.setup();
     renderDeckCardsPage();
+
+    await user.click(screen.getByText('Import CSV'));
 
     const file = new File(['bad,headers\na,b\n'], 'cards.csv', {
       type: 'text/csv',
@@ -521,13 +535,6 @@ describe('DeckCardsPage', () => {
 
     const flipButtons = screen.getAllByTitle('Flip to back');
     expect(flipButtons.length).toBe(2);
-  });
-
-  it('shows Import CSV tile in the grid', () => {
-    setupMocks();
-    renderDeckCardsPage();
-
-    expect(screen.getByText('Import CSV')).toBeInTheDocument();
   });
 
   it('reverts card changes when revert button is clicked', async () => {

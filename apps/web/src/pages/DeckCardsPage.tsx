@@ -91,6 +91,7 @@ export default function DeckCardsPage() {
   const utils = trpc.useUtils();
 
   const [isCreating, setIsCreating] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [newFront, setNewFront] = useState('');
   const [newBack, setNewBack] = useState('');
   const [csvError, setCsvError] = useState<string | null>(null);
@@ -155,6 +156,7 @@ export default function DeckCardsPage() {
     onSuccess: (data) => {
       invalidateCards();
       setCsvError(null);
+      setIsImporting(false);
       toast.success(`Imported ${data.importedCount} cards`);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -284,28 +286,62 @@ export default function DeckCardsPage() {
           )}
 
           {/* Import CSV tile */}
-          <DeckCard
-            stackCount={0}
-            className="cursor-pointer transition-shadow hover:shadow-lg"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Upload className="h-10 w-10 text-white/60" />
-            <p className="mt-2 text-sm font-medium text-white/60">Import CSV</p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv"
-              data-testid="csv-file-input"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  setCsvError(null);
-                  handleCsvUpload(file);
-                }
-              }}
-            />
-          </DeckCard>
+          {isImporting ? (
+            <DeckCard stackCount={0}>
+              <div className="flex w-full flex-col items-center gap-2 px-2">
+                <p className="text-xs text-white/60">
+                  CSV must have <code className="text-white/80">front</code> and{' '}
+                  <code className="text-white/80">back</code> columns.
+                </p>
+                <Button
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={importCsv.isPending}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Choose File
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  data-testid="csv-file-input"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setCsvError(null);
+                      handleCsvUpload(file);
+                    }
+                  }}
+                />
+                {csvError && (
+                  <p className="text-xs text-destructive">{csvError}</p>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setIsImporting(false);
+                    setCsvError(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </DeckCard>
+          ) : (
+            <DeckCard
+              stackCount={0}
+              className="cursor-pointer transition-shadow hover:shadow-lg"
+              onClick={() => setIsImporting(true)}
+            >
+              <Upload className="h-10 w-10 text-white/60" />
+              <p className="mt-2 text-sm font-medium text-white/60">
+                Import CSV
+              </p>
+            </DeckCard>
+          )}
 
           {/* Existing cards */}
           {cards.map((card) => (
@@ -327,10 +363,6 @@ export default function DeckCardsPage() {
             />
           ))}
         </div>
-
-        {csvError && (
-          <p className="mt-3 text-sm text-destructive">{csvError}</p>
-        )}
 
         {/* Danger Zone */}
         <div className="mt-10 border-t border-white/20 pt-6">

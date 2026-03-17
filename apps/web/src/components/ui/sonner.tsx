@@ -7,10 +7,12 @@ import {
   Loader2Icon,
 } from 'lucide-react';
 
+const toastBg = 'oklch(0.35 0.11 225 / 0.85)';
+
 const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
-      theme="light"
+      theme="dark"
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4" />,
@@ -21,15 +23,21 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }}
       style={
         {
-          '--normal-bg': 'var(--popover)',
-          '--normal-text': 'var(--popover-foreground)',
-          '--normal-border': 'var(--border)',
+          '--normal-bg': toastBg,
+          '--normal-text': 'white',
+          '--normal-border': 'oklch(1 0 0 / 0.2)',
+          '--success-bg': toastBg,
+          '--success-text': 'oklch(0.8 0.2 155)',
+          '--success-border': 'oklch(0.8 0.2 155 / 0.3)',
+          '--error-bg': toastBg,
+          '--error-text': 'oklch(0.8 0.2 25)',
+          '--error-border': 'oklch(0.8 0.2 25 / 0.3)',
           '--border-radius': 'var(--radius)',
         } as React.CSSProperties
       }
       toastOptions={{
         classNames: {
-          toast: 'cn-toast',
+          toast: 'cn-toast backdrop-blur-sm',
         },
       }}
       {...props}
