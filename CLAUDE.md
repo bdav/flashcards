@@ -46,6 +46,10 @@ Flashcard study app — pnpm monorepo with a React frontend (`apps/web`) and Exp
 
 **Both apps use ES modules** (`"type": "module"`). The API runs TypeScript directly via `tsx`.
 
+## Lint Rules to Know
+
+- **`react-hooks/set-state-in-effect`**: The ESLint config disallows calling `setState` synchronously inside `useEffect`. Instead of using an effect to reset/sync state, prefer deriving the value, computing it inline, or resetting state inside the event handler/callback that triggers the change.
+
 ## TDD Workflow
 
 This project is an exercise in test-driven development. Follow the red-green-refactor cycle:
