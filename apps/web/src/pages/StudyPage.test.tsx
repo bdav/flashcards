@@ -540,9 +540,11 @@ describe('StudyPage', () => {
       await user.click(backButton);
 
       // Should see card 1's result in review mode
-      const answerArea = screen.getByTestId('correct-answer');
-      expect(answerArea).toHaveTextContent('What is 2+2?');
-      expect(answerArea).toHaveTextContent('4');
+      await waitFor(() => {
+        const answerArea = screen.getByTestId('correct-answer');
+        expect(answerArea).toHaveTextContent('What is 2+2?');
+        expect(answerArea).toHaveTextContent('4');
+      });
     });
 
     it('navigates back from result phase to review earlier card', async () => {
@@ -561,9 +563,11 @@ describe('StudyPage', () => {
       const backButton = screen.getByRole('button', { name: /previous/i });
       await user.click(backButton);
 
-      const answerArea = screen.getByTestId('correct-answer');
-      expect(answerArea).toHaveTextContent('What is 2+2?');
-      expect(answerArea).toHaveTextContent('4');
+      await waitFor(() => {
+        const answerArea = screen.getByTestId('correct-answer');
+        expect(answerArea).toHaveTextContent('What is 2+2?');
+        expect(answerArea).toHaveTextContent('4');
+      });
     });
 
     it('navigates forward from review to resume answering', async () => {
@@ -579,9 +583,11 @@ describe('StudyPage', () => {
 
       // Go back to review card 1
       await user.click(screen.getByRole('button', { name: /previous/i }));
-      expect(screen.getByTestId('correct-answer')).toHaveTextContent(
-        'What is 2+2?',
-      );
+      await waitFor(() => {
+        expect(screen.getByTestId('correct-answer')).toHaveTextContent(
+          'What is 2+2?',
+        );
+      });
 
       // Go forward to resume answering card 2
       await user.click(screen.getByRole('button', { name: /next/i }));
@@ -605,9 +611,11 @@ describe('StudyPage', () => {
 
       // Go back to card 1
       await user.click(screen.getByRole('button', { name: /previous/i }));
-      expect(screen.getByTestId('correct-answer')).toHaveTextContent(
-        'What is 2+2?',
-      );
+      await waitFor(() => {
+        expect(screen.getByTestId('correct-answer')).toHaveTextContent(
+          'What is 2+2?',
+        );
+      });
 
       // Go forward to return to card 2's result
       await user.click(screen.getByRole('button', { name: /next/i }));
@@ -695,9 +703,11 @@ describe('StudyPage', () => {
 
       // Go back to card 2's review (last entry)
       await user.click(screen.getByRole('button', { name: /previous/i }));
-      expect(screen.getByTestId('correct-answer')).toHaveTextContent(
-        'What is 2+2?',
-      );
+      await waitFor(() => {
+        expect(screen.getByTestId('correct-answer')).toHaveTextContent(
+          'What is 2+2?',
+        );
+      });
 
       // Go forward to card 2's review (now at last review entry)
       await user.click(screen.getByRole('button', { name: /next/i }));

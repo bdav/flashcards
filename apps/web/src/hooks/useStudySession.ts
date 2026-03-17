@@ -89,27 +89,34 @@ export function useStudySession(
     }
   }
 
+  const advanceOrFinish = useCallback(
+    async (requeue: boolean) => {
+      const remainingAfterAdvance =
+        cardQueue.queue.length - 1 + (requeue ? 1 : 0);
+
+      if (remainingAfterAdvance === 0) {
+        if (sessionId) {
+          try {
+            await finishSession.mutateAsync({ id: sessionId });
+          } catch (err) {
+            console.error('Failed to finish study session:', err);
+          }
+        }
+        cardQueue.advance(requeue);
+        setStudyState({ phase: 'complete' });
+      } else {
+        cardQueue.advance(requeue);
+        setAnswerInput('');
+        setStudyState({ phase: 'answering' });
+      }
+    },
+    [sessionId, cardQueue, finishSession],
+  );
+
   const handleNext = useCallback(async () => {
     if (studyState.phase !== 'result' || !sessionId) return;
-
-    const requeue = studyState.result === 'incorrect';
-    const remainingAfterAdvance =
-      cardQueue.queue.length - 1 + (requeue ? 1 : 0);
-
-    if (remainingAfterAdvance === 0) {
-      try {
-        await finishSession.mutateAsync({ id: sessionId });
-      } catch (err) {
-        console.error('Failed to finish study session:', err);
-      }
-      cardQueue.advance(requeue);
-      setStudyState({ phase: 'complete' });
-    } else {
-      cardQueue.advance(requeue);
-      setAnswerInput('');
-      setStudyState({ phase: 'answering' });
-    }
-  }, [studyState, sessionId, cardQueue, finishSession]);
+    await advanceOrFinish(studyState.result === 'incorrect');
+  }, [studyState, sessionId, advanceOrFinish]);
 
   const handleBack = useCallback(() => {
     if (studyState.phase === 'answering' && history.length > 0) {
@@ -164,28 +171,10 @@ export function useStudySession(
         setStudyState({ phase: 'answering' });
       } else if (lastEntry) {
         // Current card was already answered — advance past it
-        const requeue = lastEntry.result === 'incorrect';
-        const remainingAfterAdvance =
-          cardQueue.queue.length - 1 + (requeue ? 1 : 0);
-
-        if (remainingAfterAdvance === 0) {
-          if (sessionId) {
-            try {
-              await finishSession.mutateAsync({ id: sessionId });
-            } catch (err) {
-              console.error('Failed to finish study session:', err);
-            }
-          }
-          cardQueue.advance(requeue);
-          setStudyState({ phase: 'complete' });
-        } else {
-          cardQueue.advance(requeue);
-          setAnswerInput('');
-          setStudyState({ phase: 'answering' });
-        }
+        await advanceOrFinish(lastEntry.result === 'incorrect');
       }
     }
-  }, [studyState, history, cardQueue, sessionId, finishSession]);
+  }, [studyState, history, cardQueue, advanceOrFinish]);
 
   const canGoBack =
     studyState.phase === 'answering' ||

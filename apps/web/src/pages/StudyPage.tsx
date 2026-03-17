@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
@@ -14,16 +14,12 @@ import { CenteredPage } from '@/components/CenteredPage';
 import { StudySkeleton } from '@/components/PageSkeleton';
 import { useCardQueue } from '@/hooks/useCardQueue';
 import { useStudySession } from '@/hooks/useStudySession';
+import {
+  useSlideAnimation,
+  type CardSnapshot,
+} from '@/hooks/useSlideAnimation';
 import { DeckHeader } from '@/components/DeckHeader';
 import { formatPercent } from '@/lib/format';
-
-type CardSnapshot = {
-  card: { front: string; back: string };
-  result: { result: 'correct' | 'incorrect'; userAnswer: string } | null;
-  isFlipped: boolean;
-  queueLength: number;
-  progress: string | undefined;
-};
 
 const answerInputClasses =
   'h-auto flex-1 rounded-none border-0 border-b-2 border-white/40 bg-transparent py-2 text-center text-3xl font-bold uppercase tracking-wide text-white shadow-none focus-visible:ring-0 md:text-3xl placeholder:text-white/30';
@@ -61,18 +57,13 @@ function CardBack({
   card,
   result,
   onFlip,
-  includeTestIds = true,
 }: {
   card: { front: string; back: string };
   result: { result: 'correct' | 'incorrect'; userAnswer: string };
   onFlip?: () => void;
-  includeTestIds?: boolean;
 }) {
   return (
-    <div
-      className="text-center text-white"
-      data-testid={includeTestIds ? 'correct-answer' : undefined}
-    >
+    <div className="text-center text-white" data-testid="correct-answer">
       <p className="text-sm uppercase tracking-wide text-white/50">
         {card.front}
       </p>
@@ -83,7 +74,7 @@ function CardBack({
         className={`mt-4 text-lg font-semibold ${
           result.result === 'correct' ? 'text-green-400' : 'text-red-400'
         }`}
-        data-testid={includeTestIds ? 'result' : undefined}
+        data-testid="result"
       >
         {result.result === 'correct' ? 'Correct!' : 'Incorrect'}
       </p>
@@ -148,62 +139,31 @@ export default function StudyPage() {
     ? undefined
     : `${cardQueue.cardsStudied + 1} / ${cardQueue.cardsStudied + cardQueue.queue.length}`;
 
-  const [slideKey, setSlideKey] = useState(0);
-  const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(
-    null,
-  );
-  const [lastNavDirection, setLastNavDirection] = useState<'forward' | 'back'>(
-    'forward',
-  );
-  const [exitingCard, setExitingCard] = useState<CardSnapshot | null>(null);
-
-  // Ref to snapshot current display state before navigation.
-  // Updated via effect so it's always current when event handlers read it.
-  const displayRef = useRef<CardSnapshot>({
-    card: displayCard ?? { front: '', back: '' },
-    result: displayResult,
-    isFlipped,
-    queueLength: cardQueue.queue.length,
-    progress,
-  });
-  useEffect(() => {
-    displayRef.current = {
-      card: displayCard ?? { front: '', back: '' },
-      result: displayResult,
-      isFlipped,
-      queueLength: cardQueue.queue.length,
-      progress,
-    };
-  });
-
-  const handleSlideEnd = useCallback(() => {
-    setExitingCard(null);
-    setSlideDirection(null);
-  }, []);
-
-  // Fallback cleanup — onAnimationEnd doesn't fire in JSDOM
-  useEffect(() => {
-    if (!exitingCard) return;
-    const timer = setTimeout(handleSlideEnd, 400);
-    return () => clearTimeout(timer);
-  }, [exitingCard, handleSlideEnd]);
-
-  const slideToNext = useCallback(() => {
-    setExitingCard(displayRef.current);
-    setSlideDirection('left');
-    setSlideKey((k) => k + 1);
-    setLastNavDirection('forward');
+  const onSlideNext = useCallback(() => {
     if (isReviewing) handleForward();
     else handleNext();
   }, [isReviewing, handleForward, handleNext]);
 
-  const slideToPrev = useCallback(() => {
-    setExitingCard(displayRef.current);
-    setSlideDirection('right');
-    setSlideKey((k) => k + 1);
-    setLastNavDirection('back');
-    handleBack();
-  }, [handleBack]);
+  const {
+    slideKey,
+    slideDirection,
+    lastNavDirection,
+    setLastNavDirection,
+    exitingCard,
+    handleSlideEnd,
+    slideToNext,
+    slideToPrev,
+  } = useSlideAnimation(
+    {
+      card: displayCard ?? null,
+      result: displayResult,
+      isFlipped,
+      queueLength: cardQueue.queue.length,
+      progress,
+    },
+    onSlideNext,
+    handleBack,
+  );
 
   const forwardButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -217,7 +177,7 @@ export default function StudyPage() {
   const startSession = useCallback(() => {
     setLastNavDirection('forward');
     handleStart();
-  }, [handleStart]);
+  }, [handleStart, setLastNavDirection]);
 
   // Enter key starts session during idle phase
   useEffect(() => {
@@ -355,7 +315,6 @@ export default function StudyPage() {
     queueLength: number,
     cardProgress: string | undefined,
     onFlip?: () => void,
-    includeTestIds = true,
   ) => (
     <CardStack
       queueLength={queueLength}
@@ -363,12 +322,7 @@ export default function StudyPage() {
       isFlipped={result ? flipped : undefined}
       backChildren={
         result ? (
-          <CardBack
-            card={card}
-            result={result}
-            onFlip={onFlip}
-            includeTestIds={includeTestIds}
-          />
+          <CardBack card={card} result={result} onFlip={onFlip} />
         ) : undefined
       }
     >
@@ -408,8 +362,6 @@ export default function StudyPage() {
                     exitingCard.isFlipped,
                     exitingCard.queueLength,
                     exitingCard.progress,
-                    undefined,
-                    false,
                   )}
                 </div>
                 {/* Entering card — absolutely positioned, slides in */}
