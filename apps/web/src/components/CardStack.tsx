@@ -40,17 +40,17 @@ export function CardStack({
       }
     >
       {queueLength > 2 && (
-        <div className="absolute inset-x-2 top-0 h-4 rounded-t-xl border border-b-0 border-white/30 bg-white/10 backdrop-blur-sm" />
+        <div className="absolute inset-x-2 top-0 aspect-3/2 rounded-xl border border-white/30 bg-white/10 backdrop-blur-sm" />
       )}
       {queueLength > 1 && (
-        <div className="absolute inset-x-1 top-1.5 h-4 rounded-t-xl border border-b-0 border-white/30 bg-white/15 backdrop-blur-sm" />
+        <div className="absolute inset-x-1 top-1.5 aspect-3/2 rounded-xl border border-white/30 bg-white/15 backdrop-blur-sm" />
       )}
       {hasFlip ? (
         <div
           className="relative w-full transition-transform duration-500"
           style={{
             transformStyle: 'preserve-3d',
-            transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+            transform: isFlipped ? 'rotateY(-180deg)' : 'rotateY(0deg)',
           }}
         >
           {/* Front face */}
@@ -70,7 +70,7 @@ export function CardStack({
             className={`absolute inset-0 flex aspect-3/2 w-full flex-col items-center justify-center rounded-xl border border-white/30 bg-white/15 p-8 backdrop-blur-sm ${className ?? ''}`}
             style={{
               backfaceVisibility: 'hidden',
-              transform: 'rotateY(180deg)',
+              transform: 'rotateY(-180deg)',
             }}
           >
             {backChildren}

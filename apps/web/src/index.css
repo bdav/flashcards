@@ -62,20 +62,19 @@ button {
 }
 
 /* Card slide: two independent cards animate in sync as a train car.
-   Each card uses translateX(±100%) relative to its own width, so they
-   stay adjacent (no gap, no overlap) throughout the animation. */
+   Each card uses translateX(±103%) to maintain a small gap between them. */
 @keyframes card-out-left {
   from {
     transform: translateX(0);
   }
   to {
-    transform: translateX(-100%);
+    transform: translateX(-103%);
   }
 }
 
 @keyframes card-in-from-right {
   from {
-    transform: translateX(100%);
+    transform: translateX(103%);
   }
   to {
     transform: translateX(0);
@@ -87,13 +86,13 @@ button {
     transform: translateX(0);
   }
   to {
-    transform: translateX(100%);
+    transform: translateX(103%);
   }
 }
 
 @keyframes card-in-from-left {
   from {
-    transform: translateX(-100%);
+    transform: translateX(-103%);
   }
   to {
     transform: translateX(0);

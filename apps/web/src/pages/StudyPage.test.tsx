@@ -146,7 +146,7 @@ describe('StudyPage', () => {
       screen.getByRole('heading', { name: /test deck/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /start studying/i }),
+      screen.getByRole('button', { name: /test deck/i }),
     ).toBeInTheDocument();
   });
 
@@ -155,7 +155,7 @@ describe('StudyPage', () => {
     const user = userEvent.setup();
     renderStudyPage();
 
-    await user.click(screen.getByRole('button', { name: /start studying/i }));
+    await user.click(screen.getByRole('button', { name: /test deck/i }));
 
     expect(screen.getByText('What is 2+2?')).toBeInTheDocument();
     expect(screen.getByRole('textbox')).toBeInTheDocument();
@@ -169,7 +169,7 @@ describe('StudyPage', () => {
     const user = userEvent.setup();
     renderStudyPage();
 
-    await user.click(screen.getByRole('button', { name: /start studying/i }));
+    await user.click(screen.getByRole('button', { name: /test deck/i }));
     await user.type(screen.getByRole('textbox'), '4');
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
@@ -189,7 +189,7 @@ describe('StudyPage', () => {
     const user = userEvent.setup();
     renderStudyPage();
 
-    await user.click(screen.getByRole('button', { name: /start studying/i }));
+    await user.click(screen.getByRole('button', { name: /test deck/i }));
     await user.type(screen.getByRole('textbox'), '5');
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
@@ -205,7 +205,7 @@ describe('StudyPage', () => {
     const user = userEvent.setup();
     renderStudyPage();
 
-    await user.click(screen.getByRole('button', { name: /start studying/i }));
+    await user.click(screen.getByRole('button', { name: /test deck/i }));
     await user.type(screen.getByRole('textbox'), '4{Enter}');
 
     await waitFor(() => {
@@ -218,7 +218,7 @@ describe('StudyPage', () => {
     const user = userEvent.setup();
     renderStudyPage();
 
-    await user.click(screen.getByRole('button', { name: /start studying/i }));
+    await user.click(screen.getByRole('button', { name: /test deck/i }));
     await user.type(screen.getByRole('textbox'), '4');
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
@@ -239,7 +239,7 @@ describe('StudyPage', () => {
     const user = userEvent.setup();
     renderStudyPage();
 
-    await user.click(screen.getByRole('button', { name: /start studying/i }));
+    await user.click(screen.getByRole('button', { name: /test deck/i }));
 
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
   });
@@ -249,7 +249,7 @@ describe('StudyPage', () => {
     const user = userEvent.setup();
     renderStudyPage();
 
-    await user.click(screen.getByRole('button', { name: /start studying/i }));
+    await user.click(screen.getByRole('button', { name: /test deck/i }));
     await user.type(screen.getByRole('textbox'), '4');
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
@@ -270,7 +270,7 @@ describe('StudyPage', () => {
     const user = userEvent.setup();
     renderStudyPage();
 
-    await user.click(screen.getByRole('button', { name: /start studying/i }));
+    await user.click(screen.getByRole('button', { name: /test deck/i }));
 
     // Answer first card incorrectly
     await user.type(screen.getByRole('textbox'), 'wrong');
@@ -305,7 +305,7 @@ describe('StudyPage', () => {
     renderStudyPage();
 
     // Card 1
-    await user.click(screen.getByRole('button', { name: /start studying/i }));
+    await user.click(screen.getByRole('button', { name: /test deck/i }));
     await user.type(screen.getByRole('textbox'), '4');
     await user.click(screen.getByRole('button', { name: /submit/i }));
     await waitFor(() => {
@@ -385,7 +385,7 @@ describe('StudyPage', () => {
     renderStudyPage();
 
     // Card 1 — correct
-    await user.click(screen.getByRole('button', { name: /start studying/i }));
+    await user.click(screen.getByRole('button', { name: /test deck/i }));
     await user.type(screen.getByRole('textbox'), '4');
     await user.click(screen.getByRole('button', { name: /submit/i }));
     await waitFor(() => {
@@ -451,7 +451,7 @@ describe('StudyPage', () => {
     const user = userEvent.setup();
     renderStudyPage();
 
-    await user.click(screen.getByRole('button', { name: /start studying/i }));
+    await user.click(screen.getByRole('button', { name: /test deck/i }));
     await user.click(screen.getByRole('button', { name: /submit/i }));
 
     // Should still be on the same card, no result shown
@@ -527,7 +527,7 @@ describe('StudyPage', () => {
       const user = userEvent.setup();
       renderStudyPage();
 
-      await user.click(screen.getByRole('button', { name: /start studying/i }));
+      await user.click(screen.getByRole('button', { name: /test deck/i }));
 
       // Answer card 1 and advance to card 2
       await startAndAnswerCard(user, '4');
@@ -552,7 +552,7 @@ describe('StudyPage', () => {
       const user = userEvent.setup();
       renderStudyPage();
 
-      await user.click(screen.getByRole('button', { name: /start studying/i }));
+      await user.click(screen.getByRole('button', { name: /test deck/i }));
 
       // Answer card 1, advance, answer card 2
       await startAndAnswerCard(user, '4');
@@ -575,7 +575,7 @@ describe('StudyPage', () => {
       const user = userEvent.setup();
       renderStudyPage();
 
-      await user.click(screen.getByRole('button', { name: /start studying/i }));
+      await user.click(screen.getByRole('button', { name: /test deck/i }));
 
       // Answer card 1, advance to card 2
       await startAndAnswerCard(user, '4');
@@ -602,7 +602,7 @@ describe('StudyPage', () => {
       const user = userEvent.setup();
       renderStudyPage();
 
-      await user.click(screen.getByRole('button', { name: /start studying/i }));
+      await user.click(screen.getByRole('button', { name: /test deck/i }));
 
       // Answer card 1, advance, answer card 2 (stay on result)
       await startAndAnswerCard(user, '4');
@@ -631,7 +631,7 @@ describe('StudyPage', () => {
       const user = userEvent.setup();
       renderStudyPage();
 
-      await user.click(screen.getByRole('button', { name: /start studying/i }));
+      await user.click(screen.getByRole('button', { name: /test deck/i }));
 
       // On the first card with no history — back is still enabled (goes to title)
       const backButton = screen.getByRole('button', { name: /previous/i });
@@ -643,7 +643,7 @@ describe('StudyPage', () => {
       const user = userEvent.setup();
       renderStudyPage();
 
-      await user.click(screen.getByRole('button', { name: /start studying/i }));
+      await user.click(screen.getByRole('button', { name: /test deck/i }));
 
       // Answer card 1 and stay on result
       await startAndAnswerCard(user, '4');
@@ -651,13 +651,12 @@ describe('StudyPage', () => {
       // Back from result with only 1 history entry goes to title card (reviewIndex: -1)
       await user.click(screen.getByRole('button', { name: /previous/i }));
 
-      // Title card should show card count and "Start studying"
+      // Title card should show deck name and card count
       await waitFor(() => {
         expect(
           screen.getByText(`${mockDeck.cards.length} cards`),
         ).toBeInTheDocument();
       });
-      expect(screen.getByText(/start studying/i)).toBeInTheDocument();
       // Previous button should be hidden on title card
       expect(
         screen.queryByRole('button', { name: /previous/i }),
@@ -669,7 +668,7 @@ describe('StudyPage', () => {
       const user = userEvent.setup();
       renderStudyPage();
 
-      await user.click(screen.getByRole('button', { name: /start studying/i }));
+      await user.click(screen.getByRole('button', { name: /test deck/i }));
 
       // Answer card 1 and stay on result
       await startAndAnswerCard(user, '4');
@@ -677,7 +676,9 @@ describe('StudyPage', () => {
       // Back to title card
       await user.click(screen.getByRole('button', { name: /previous/i }));
       await waitFor(() => {
-        expect(screen.getByText(/start studying/i)).toBeInTheDocument();
+        expect(
+          screen.getByText(`${mockDeck.cards.length} cards`),
+        ).toBeInTheDocument();
       });
 
       // Forward should go to card 1's review entry
@@ -694,7 +695,7 @@ describe('StudyPage', () => {
       const user = userEvent.setup();
       renderStudyPage();
 
-      await user.click(screen.getByRole('button', { name: /start studying/i }));
+      await user.click(screen.getByRole('button', { name: /test deck/i }));
 
       // Answer card 1, advance, answer card 2 (stay on result)
       await startAndAnswerCard(user, '4');
@@ -734,7 +735,7 @@ describe('StudyPage', () => {
       const user = userEvent.setup();
       renderStudyPage();
 
-      await user.click(screen.getByRole('button', { name: /start studying/i }));
+      await user.click(screen.getByRole('button', { name: /test deck/i }));
 
       // No flip button during answering phase
       expect(
@@ -760,7 +761,7 @@ describe('StudyPage', () => {
       const user = userEvent.setup();
       renderStudyPage();
 
-      await user.click(screen.getByRole('button', { name: /start studying/i }));
+      await user.click(screen.getByRole('button', { name: /test deck/i }));
       await user.type(screen.getByRole('textbox'), '4');
       await user.click(screen.getByRole('button', { name: /submit/i }));
 
@@ -796,7 +797,7 @@ describe('StudyPage', () => {
 
       // Should be in idle phase with start button
       expect(
-        screen.getByRole('button', { name: /start studying/i }),
+        screen.getByRole('button', { name: /test deck/i }),
       ).toBeInTheDocument();
 
       // Press Enter to start

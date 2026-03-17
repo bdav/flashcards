@@ -71,9 +71,7 @@ function CardBack({
         {card.back}
       </p>
       <p
-        className={`mt-4 text-lg font-semibold ${
-          result.result === 'correct' ? 'text-green-400' : 'text-red-400'
-        }`}
+        className={`mt-4 inline-block rounded-full px-4 py-1 text-lg font-semibold text-white ${result.result === 'correct' ? 'bg-green-500' : 'bg-red-400'}`}
         data-testid="result"
       >
         {result.result === 'correct' ? 'Correct!' : 'Incorrect'}
@@ -126,7 +124,8 @@ export default function StudyPage() {
 
   const currentCard = cardQueue.currentCard;
   const isReviewing = studyState.phase === 'reviewing';
-  const isAtTitle = isReviewing && !reviewEntry;
+  const isIdle = studyState.phase === 'idle';
+  const isAtTitle = isIdle || (isReviewing && !reviewEntry);
 
   const displayCard = isReviewing ? reviewEntry?.card : currentCard;
   const displayResult =
@@ -140,15 +139,15 @@ export default function StudyPage() {
     : `${cardQueue.cardsStudied + 1} / ${cardQueue.cardsStudied + cardQueue.queue.length}`;
 
   const onSlideNext = useCallback(() => {
-    if (isReviewing) handleForward();
+    if (isIdle) handleStart();
+    else if (isReviewing) handleForward();
     else handleNext();
-  }, [isReviewing, handleForward, handleNext]);
+  }, [isIdle, isReviewing, handleStart, handleForward, handleNext]);
 
   const {
     slideKey,
     slideDirection,
     lastNavDirection,
-    setLastNavDirection,
     exitingCard,
     handleSlideEnd,
     slideToNext,
@@ -174,20 +173,15 @@ export default function StudyPage() {
     }
   }, [isAtTitle, exitingCard]);
 
-  const startSession = useCallback(() => {
-    setLastNavDirection('forward');
-    handleStart();
-  }, [handleStart, setLastNavDirection]);
-
-  // Enter key starts session during idle phase
+  // Enter key starts session during idle phase (with slide)
   useEffect(() => {
     if (studyState.phase !== 'idle') return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Enter') startSession();
+      if (e.key === 'Enter') slideToNext();
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [studyState.phase, startSession]);
+  }, [studyState.phase, slideToNext]);
 
   // Enter key advances during result phase (with slide)
   useEffect(() => {
@@ -222,34 +216,6 @@ export default function StudyPage() {
         >
           Add cards
         </Link>
-      </CenteredPage>
-    );
-  }
-
-  if (studyState.phase === 'idle') {
-    return (
-      <CenteredPage>
-        <DeckHeader
-          deckName={deck.name}
-          deckId={deckId ?? ''}
-          activeTab="study"
-        />
-        <div className="flex w-full flex-1 flex-col items-center justify-center">
-          {error && <p className="mb-2 text-destructive">{error}</p>}
-          <CardStack
-            queueLength={cards.length}
-            className="animate-pulse-halo-border cursor-pointer"
-            onClick={startSession}
-          >
-            <p className="text-3xl font-bold text-white">
-              {cards.length} cards
-            </p>
-            <p className="mt-4 text-lg text-white/70">Start studying</p>
-          </CardStack>
-          <div className="mt-6 w-full max-w-md">
-            <div className="py-2 text-3xl">&nbsp;</div>
-          </div>
-        </div>
       </CenteredPage>
     );
   }
@@ -298,7 +264,7 @@ export default function StudyPage() {
           <p className="mt-2 text-white/60">
             First-try accuracy: {formatPercent(firstTryAccuracy)}
           </p>
-          <Button className="mt-6" onClick={startSession}>
+          <Button className="mt-6" onClick={handleStart}>
             Study again
           </Button>
         </div>
@@ -386,10 +352,10 @@ export default function StudyPage() {
                     ) : (
                       <CardStack queueLength={cards.length}>
                         <p className="text-3xl font-bold text-white">
-                          {cards.length} cards
+                          {deck.name}
                         </p>
-                        <p className="mt-4 text-lg text-white/70">
-                          Start studying
+                        <p className="mt-4 text-sm text-white/50">
+                          {cards.length} cards
                         </p>
                       </CardStack>
                     )}
@@ -410,11 +376,17 @@ export default function StudyPage() {
             </div>
           ) : isAtTitle ? (
             <div key={slideKey}>
-              <CardStack queueLength={cards.length}>
-                <p className="text-3xl font-bold text-white">
+              <CardStack
+                queueLength={cards.length}
+                className={
+                  isIdle ? 'animate-pulse-halo-border cursor-pointer' : ''
+                }
+                onClick={isIdle ? slideToNext : undefined}
+              >
+                <p className="text-3xl font-bold text-white">{deck.name}</p>
+                <p className="mt-4 text-sm text-white/50">
                   {cards.length} cards
                 </p>
-                <p className="mt-4 text-lg text-white/70">Start studying</p>
               </CardStack>
             </div>
           ) : null}
@@ -474,11 +446,13 @@ export default function StudyPage() {
             </form>
           )}
 
-          {(studyState.phase === 'result' || isReviewing) && displayResult && (
+          {(studyState.phase === 'result' || isReviewing) && displayResult ? (
             <p className="py-2 text-center text-3xl font-bold uppercase tracking-wide text-white">
               {displayResult.userAnswer}
             </p>
-          )}
+          ) : studyState.phase !== 'answering' ? (
+            <div className="py-2 text-3xl">&nbsp;</div>
+          ) : null}
         </div>
       </div>
     </CenteredPage>
