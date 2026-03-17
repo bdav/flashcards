@@ -629,5 +629,174 @@ describe('StudyPage', () => {
       const backButton = screen.getByRole('button', { name: /previous/i });
       expect(backButton).not.toBeDisabled();
     });
+
+    it('shows title card when backing past first history entry', async () => {
+      setupMocksWithStartSession();
+      const user = userEvent.setup();
+      renderStudyPage();
+
+      await user.click(screen.getByRole('button', { name: /start studying/i }));
+
+      // Answer card 1 and stay on result
+      await startAndAnswerCard(user, '4');
+
+      // Back from result with only 1 history entry goes to title card (reviewIndex: -1)
+      await user.click(screen.getByRole('button', { name: /previous/i }));
+
+      // Title card should show card count and "Start studying"
+      await waitFor(() => {
+        expect(
+          screen.getByText(`${mockDeck.cards.length} cards`),
+        ).toBeInTheDocument();
+      });
+      expect(screen.getByText(/start studying/i)).toBeInTheDocument();
+      // Previous button should be hidden on title card
+      expect(
+        screen.queryByRole('button', { name: /previous/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('forward from title card resumes session', async () => {
+      setupMocksWithStartSession();
+      const user = userEvent.setup();
+      renderStudyPage();
+
+      await user.click(screen.getByRole('button', { name: /start studying/i }));
+
+      // Answer card 1 and stay on result
+      await startAndAnswerCard(user, '4');
+
+      // Back to title card
+      await user.click(screen.getByRole('button', { name: /previous/i }));
+      await waitFor(() => {
+        expect(screen.getByText(/start studying/i)).toBeInTheDocument();
+      });
+
+      // Forward should go to card 1's review entry
+      await user.click(screen.getByRole('button', { name: /next/i }));
+      await waitFor(() => {
+        expect(screen.getByTestId('correct-answer')).toHaveTextContent(
+          'What is 2+2?',
+        );
+      });
+    });
+
+    it('forward from last review entry advances to next card', async () => {
+      setupMocksWithStartSession();
+      const user = userEvent.setup();
+      renderStudyPage();
+
+      await user.click(screen.getByRole('button', { name: /start studying/i }));
+
+      // Answer card 1, advance, answer card 2 (stay on result)
+      await startAndAnswerCard(user, '4');
+      await advanceToNextCard(user);
+      await startAndAnswerCard(user, 'Paris');
+
+      // Go back to card 2's review (last entry)
+      await user.click(screen.getByRole('button', { name: /previous/i }));
+      expect(screen.getByTestId('correct-answer')).toHaveTextContent(
+        'What is 2+2?',
+      );
+
+      // Go forward to card 2's review (now at last review entry)
+      await user.click(screen.getByRole('button', { name: /next/i }));
+      await waitFor(() => {
+        expect(screen.getByTestId('correct-answer')).toHaveTextContent(
+          'Capital of France?',
+        );
+      });
+
+      // Forward again from the last review entry — should advance past
+      // the already-answered card and complete the session
+      await user.click(screen.getByRole('button', { name: /next/i }));
+      await waitFor(() => {
+        expect(
+          screen.getByRole('heading', { name: /session complete/i }),
+        ).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('card flip', () => {
+    it('shows flip button after submitting an answer', async () => {
+      setupMocksWithStartSession();
+      const user = userEvent.setup();
+      renderStudyPage();
+
+      await user.click(screen.getByRole('button', { name: /start studying/i }));
+
+      // No flip button during answering phase
+      expect(
+        screen.queryByRole('button', { name: /flip to back/i }),
+      ).not.toBeInTheDocument();
+
+      // Submit an answer
+      await user.type(screen.getByRole('textbox'), '4');
+      await user.click(screen.getByRole('button', { name: /submit/i }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('result')).toBeInTheDocument();
+      });
+
+      // Flip button should now be visible on the back face
+      expect(
+        screen.getByRole('button', { name: /flip to front/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('toggles between front and back when flip button is clicked', async () => {
+      setupMocksWithStartSession();
+      const user = userEvent.setup();
+      renderStudyPage();
+
+      await user.click(screen.getByRole('button', { name: /start studying/i }));
+      await user.type(screen.getByRole('textbox'), '4');
+      await user.click(screen.getByRole('button', { name: /submit/i }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('result')).toBeInTheDocument();
+      });
+
+      // Initially showing back (result) — flip to front should show the question
+      await user.click(screen.getByRole('button', { name: /flip to front/i }));
+
+      // After flipping to front, the "flip to back" button should appear
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /flip to back/i }),
+        ).toBeInTheDocument();
+      });
+
+      // Flip back to the result side
+      await user.click(screen.getByRole('button', { name: /flip to back/i }));
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /flip to front/i }),
+        ).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('keyboard shortcuts', () => {
+    it('starts session on Enter key during idle phase', async () => {
+      setupMocksWithStartSession();
+      const user = userEvent.setup();
+      renderStudyPage();
+
+      // Should be in idle phase with start button
+      expect(
+        screen.getByRole('button', { name: /start studying/i }),
+      ).toBeInTheDocument();
+
+      // Press Enter to start
+      await user.keyboard('{Enter}');
+
+      // Should now be in answering phase
+      await waitFor(() => {
+        expect(screen.getByText('What is 2+2?')).toBeInTheDocument();
+      });
+      expect(screen.getByRole('textbox')).toBeInTheDocument();
+    });
   });
 });
