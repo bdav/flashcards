@@ -1,32 +1,99 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Plus, Trash2, Upload } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { CenteredPage } from '@/components/CenteredPage';
-import { DeckHeader } from '@/components/DeckHeader';
+import { DeckTabs } from '@/components/DeckTabs';
 import { DeckCardsSkeleton } from '@/components/PageSkeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { DeckCard } from '@/components/DeckCard';
+import { FlashCardTile } from '@/components/FlashCardTile';
+
+function EditableDeckTitle({ deckId, name }: { deckId: string; name: string }) {
+  const utils = trpc.useUtils();
+  const [localName, setLocalName] = useState(name);
+  const [isEditing, setIsEditing] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  useEffect(() => {
+    setLocalName(name);
+  }, [name]);
+
+  const updateDeck = trpc.deck.update.useMutation({
+    onSuccess: () => {
+      utils.deck.getById.invalidate({ id: deckId });
+      utils.deck.list.invalidate();
+    },
+    onError: () => {
+      toast.error('Failed to update deck name');
+      setLocalName(name);
+    },
+  });
+
+  const mutateRef = useRef(updateDeck.mutate);
+  useEffect(() => {
+    mutateRef.current = updateDeck.mutate;
+  }, [updateDeck.mutate]);
+
+  function debouncedSave(newName: string) {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const trimmed = newName.trim();
+      if (trimmed && trimmed !== name) {
+        mutateRef.current({ id: deckId, name: trimmed });
+      }
+    }, 800);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  if (!isEditing) {
+    return (
+      <h1
+        className="cursor-text text-3xl font-bold text-white hover:text-white/80"
+        onClick={() => setIsEditing(true)}
+        title="Click to edit"
+      >
+        {localName}
+      </h1>
+    );
+  }
+
+  return (
+    <input
+      type="text"
+      value={localName}
+      onChange={(e) => {
+        setLocalName(e.target.value);
+        debouncedSave(e.target.value);
+      }}
+      onBlur={() => setIsEditing(false)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === 'Escape') {
+          setIsEditing(false);
+        }
+      }}
+      autoFocus
+      className="w-full bg-transparent text-3xl font-bold text-white outline-none border-b-2 border-white/30 focus:border-white/60 transition-colors"
+    />
+  );
+}
 
 export default function DeckCardsPage() {
   const { deckId } = useParams<{ deckId: string }>();
   const navigate = useNavigate();
   const utils = trpc.useUtils();
 
-  const [front, setFront] = useState('');
-  const [back, setBack] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [newFront, setNewFront] = useState('');
+  const [newBack, setNewBack] = useState('');
   const [csvError, setCsvError] = useState<string | null>(null);
-  const [editingCardId, setEditingCardId] = useState<string | null>(null);
-  const [editFront, setEditFront] = useState('');
-  const [editBack, setEditBack] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const deckQuery = trpc.deck.getById.useQuery(
@@ -45,8 +112,10 @@ export default function DeckCardsPage() {
   const createCard = trpc.card.create.useMutation({
     onSuccess: () => {
       invalidateCards();
-      setFront('');
-      setBack('');
+      setIsCreating(false);
+      setNewFront('');
+      setNewBack('');
+      toast.success('Card added');
     },
     onError: () => {
       toast.error('Failed to add card');
@@ -56,7 +125,6 @@ export default function DeckCardsPage() {
   const updateCard = trpc.card.update.useMutation({
     onSuccess: () => {
       invalidateCards();
-      setEditingCardId(null);
     },
     onError: () => {
       toast.error('Failed to update card');
@@ -69,17 +137,6 @@ export default function DeckCardsPage() {
     },
     onError: () => {
       toast.error('Failed to delete card');
-    },
-  });
-
-  const updateDeck = trpc.deck.update.useMutation({
-    onSuccess: () => {
-      utils.deck.getById.invalidate({ id: deckId! });
-      utils.deck.list.invalidate();
-      toast.success('Deck updated');
-    },
-    onError: () => {
-      toast.error('Failed to update deck');
     },
   });
 
@@ -143,60 +200,103 @@ export default function DeckCardsPage() {
 
   return (
     <CenteredPage>
-      <div className="w-full max-w-2xl text-white">
-        <DeckHeader deckName={deck.name} deckId={deckId} activeTab="cards" />
-
-        <div className="mt-6">
-          <h2 className="text-lg font-semibold">Add Card</h2>
-          <form
-            className="mt-2 flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!front.trim() || !back.trim()) return;
-              createCard.mutate({
-                deckId,
-                front: front.trim(),
-                back: back.trim(),
-              });
-            }}
-          >
-            <Input
-              type="text"
-              value={front}
-              onChange={(e) => setFront(e.target.value)}
-              placeholder="Front"
-              className="flex-1"
-            />
-            <Input
-              type="text"
-              value={back}
-              onChange={(e) => setBack(e.target.value)}
-              placeholder="Back"
-              className="flex-1"
-            />
-            <Button type="submit" disabled={createCard.isPending}>
-              Add
-            </Button>
-          </form>
-          {createCard.isError && (
-            <p className="mt-2 text-sm text-destructive">
-              {createCard.error.message}
-            </p>
-          )}
+      <div className="w-full max-w-4xl text-white">
+        <div className="relative w-full max-w-4xl">
+          <EditableDeckTitle deckId={deckId} name={deck.name} />
+          <div className="absolute right-0 top-1/2 -translate-y-1/2">
+            <DeckTabs deckId={deckId} activeTab="cards" />
+          </div>
         </div>
 
-        <div className="mt-6">
-          <h2 className="text-lg font-semibold">Import CSV</h2>
-          <p className="mt-1 text-sm text-white/60">
-            CSV must have <code>front</code> and <code>back</code> columns.
-          </p>
-          <div className="mt-2 flex gap-2">
+        <p className="mt-2 text-sm text-white/50">
+          {cards.length} {cards.length === 1 ? 'card' : 'cards'}
+          {cards.length === 0 && (
+            <span className="ml-1">
+              — add cards below or import a CSV to get started
+            </span>
+          )}
+        </p>
+
+        {/* Card Grid */}
+        <div className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-3">
+          {/* New Card button / form */}
+          {isCreating ? (
+            <DeckCard stackCount={0}>
+              <form
+                className="flex w-full flex-col items-center gap-2 px-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!newFront.trim() || !newBack.trim()) return;
+                  createCard.mutate({
+                    deckId,
+                    front: newFront.trim(),
+                    back: newBack.trim(),
+                  });
+                }}
+              >
+                <Input
+                  type="text"
+                  value={newFront}
+                  onChange={(e) => setNewFront(e.target.value)}
+                  placeholder="Front"
+                  autoFocus
+                  className="text-center text-sm"
+                />
+                <Input
+                  type="text"
+                  value={newBack}
+                  onChange={(e) => setNewBack(e.target.value)}
+                  placeholder="Back"
+                  className="text-center text-sm"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={createCard.isPending}
+                  >
+                    Add
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setIsCreating(false);
+                      setNewFront('');
+                      setNewBack('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </DeckCard>
+          ) : (
+            <DeckCard
+              stackCount={0}
+              className="cursor-pointer transition-shadow hover:shadow-lg"
+              onClick={() => setIsCreating(true)}
+            >
+              <Plus className="h-10 w-10 text-white/60" />
+              <p className="mt-2 text-sm font-medium text-white/60">New Card</p>
+            </DeckCard>
+          )}
+
+          {/* Import CSV tile */}
+          <DeckCard
+            stackCount={0}
+            className="cursor-pointer transition-shadow hover:shadow-lg"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="h-10 w-10 text-white/60" />
+            <p className="mt-2 text-sm font-medium text-white/60">Import CSV</p>
             <input
               ref={fileInputRef}
               type="file"
               accept=".csv"
               data-testid="csv-file-input"
-              className="flex-1 text-sm file:mr-2 file:rounded file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground"
+              className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
@@ -205,188 +305,51 @@ export default function DeckCardsPage() {
                 }
               }}
             />
-          </div>
-          {csvError && (
-            <p className="mt-2 text-sm text-destructive">{csvError}</p>
-          )}
+          </DeckCard>
+
+          {/* Existing cards */}
+          {cards.map((card) => (
+            <FlashCardTile
+              key={card.id}
+              front={card.front}
+              back={card.back}
+              onSave={(front, back) =>
+                updateCard.mutate({ cardId: card.id, front, back })
+              }
+              onDelete={() => {
+                if (window.confirm('Delete this card?')) {
+                  deleteCard.mutate({ cardId: card.id });
+                }
+              }}
+              isSaving={
+                updateCard.isPending && updateCard.variables?.cardId === card.id
+              }
+            />
+          ))}
         </div>
 
-        <div className="mt-8">
-          <h2 className="text-lg font-semibold">All Cards ({cards.length})</h2>
-          {cards.length === 0 ? (
-            <p className="mt-3 text-white/60">
-              No cards yet. Add cards above or import a CSV.
-            </p>
-          ) : (
-            <Table className="mt-3">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Front</TableHead>
-                  <TableHead>Back</TableHead>
-                  <TableHead className="w-28"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {cards.map((card) => (
-                  <TableRow key={card.id}>
-                    {editingCardId === card.id ? (
-                      <>
-                        <TableCell className="py-2">
-                          <Input
-                            value={editFront}
-                            onChange={(e) => setEditFront(e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell className="py-2">
-                          <Input
-                            value={editBack}
-                            onChange={(e) => setEditBack(e.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell className="py-2">
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                updateCard.mutate({
-                                  cardId: card.id,
-                                  front: editFront.trim(),
-                                  back: editBack.trim(),
-                                });
-                              }}
-                              disabled={!editFront.trim() || !editBack.trim()}
-                            >
-                              Save
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setEditingCardId(null)}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </>
-                    ) : (
-                      <>
-                        <TableCell className="py-3 font-medium">
-                          {card.front}
-                        </TableCell>
-                        <TableCell className="py-3">{card.back}</TableCell>
-                        <TableCell className="py-3">
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setEditingCardId(card.id);
-                                setEditFront(card.front);
-                                setEditBack(card.back);
-                              }}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-destructive"
-                              onClick={() => {
-                                if (window.confirm('Delete this card?')) {
-                                  deleteCard.mutate({ cardId: card.id });
-                                }
-                              }}
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </div>
+        {csvError && (
+          <p className="mt-3 text-sm text-destructive">{csvError}</p>
+        )}
 
+        {/* Danger Zone */}
         <div className="mt-10 border-t border-white/20 pt-6">
-          <h2 className="text-lg font-semibold">Deck Settings</h2>
-          <form
-            key={`${deck.name}|${deck.description ?? ''}`}
-            className="mt-3 space-y-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!deck) return;
-              const formData = new FormData(e.currentTarget);
-              const name = (formData.get('deckName') as string).trim();
-              const description = (
-                formData.get('deckDescription') as string
-              ).trim();
-              if (!name) return;
-              const data: {
-                id: string;
-                name?: string;
-                description?: string | null;
-              } = {
-                id: deckId,
-              };
-              if (name !== deck.name) {
-                data.name = name;
-              }
-              if (description !== (deck.description ?? '')) {
-                data.description = description || null;
-              }
-              if (data.name !== undefined || data.description !== undefined) {
-                updateDeck.mutate(data);
+          <Button
+            variant="outline"
+            className="text-destructive"
+            onClick={() => {
+              if (
+                window.confirm(
+                  `Are you sure you want to delete "${deck?.name}"? This cannot be undone.`,
+                )
+              ) {
+                deleteDeck.mutate({ id: deckId });
               }
             }}
           >
-            <div>
-              <label htmlFor="deck-name" className="text-sm font-medium">
-                Deck Name
-              </label>
-              <Input
-                id="deck-name"
-                name="deckName"
-                defaultValue={deck.name}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <label htmlFor="deck-description" className="text-sm font-medium">
-                Description
-              </label>
-              <Input
-                id="deck-description"
-                name="deckDescription"
-                defaultValue={deck.description ?? ''}
-                placeholder="Optional description"
-                className="mt-1"
-              />
-            </div>
-            <Button type="submit" disabled={updateDeck.isPending}>
-              Save Changes
-            </Button>
-          </form>
-
-          <div className="mt-6">
-            <Button
-              variant="outline"
-              className="text-destructive"
-              onClick={() => {
-                if (
-                  window.confirm(
-                    `Are you sure you want to delete "${deck?.name}"? This cannot be undone.`,
-                  )
-                ) {
-                  deleteDeck.mutate({ id: deckId });
-                }
-              }}
-            >
-              Delete Deck
-            </Button>
-          </div>
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete Deck
+          </Button>
         </div>
       </div>
     </CenteredPage>

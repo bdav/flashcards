@@ -141,28 +141,36 @@ beforeEach(() => {
 });
 
 describe('DeckCardsPage', () => {
-  it('renders card table with existing cards', () => {
+  it('renders card tiles with front text visible', () => {
     setupMocks();
     renderDeckCardsPage();
 
-    expect(screen.getByText('Capital of France')).toBeInTheDocument();
-    expect(screen.getByText('Paris')).toBeInTheDocument();
-    expect(screen.getByText('Capital of Germany')).toBeInTheDocument();
-    expect(screen.getByText('Berlin')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Capital of France')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Capital of Germany')).toBeInTheDocument();
   });
 
-  it('shows card count in heading', () => {
+  it('shows card count', () => {
     setupMocks();
     renderDeckCardsPage();
 
-    expect(screen.getByText(/all cards \(2\)/i)).toBeInTheDocument();
+    expect(screen.getByText('2 cards')).toBeInTheDocument();
   });
 
-  it('renders empty state when deck has no cards', () => {
+  it('shows singular card count for one card', () => {
+    setupMocks({ cards: [mockCards[0]] });
+    renderDeckCardsPage();
+
+    expect(screen.getByText('1 card')).toBeInTheDocument();
+  });
+
+  it('shows empty state with guidance when deck has no cards', () => {
     setupMocks({ cards: [] });
     renderDeckCardsPage();
 
-    expect(screen.getByText(/no cards yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/0 cards/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/add cards below or import a CSV/i),
+    ).toBeInTheDocument();
   });
 
   it('shows loading state', () => {
@@ -181,16 +189,20 @@ describe('DeckCardsPage', () => {
     expect(screen.getByText(/error/i)).toBeInTheDocument();
   });
 
-  it('renders add-card form with front and back inputs', () => {
+  it('shows New Card button that opens creation form', async () => {
     setupMocks();
+    const user = userEvent.setup();
     renderDeckCardsPage();
+
+    expect(screen.getByText('New Card')).toBeInTheDocument();
+    await user.click(screen.getByText('New Card'));
 
     expect(screen.getByPlaceholderText('Front')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Back')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /add/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^add$/i })).toBeInTheDocument();
   });
 
-  it('calls create mutation when add-card form is submitted', async () => {
+  it('calls create mutation when new card form is submitted', async () => {
     setupMocks();
     const mockMutate = vi.fn();
     vi.mocked(trpc.card.create.useMutation).mockReturnValue({
@@ -204,9 +216,10 @@ describe('DeckCardsPage', () => {
     const user = userEvent.setup();
     renderDeckCardsPage();
 
+    await user.click(screen.getByText('New Card'));
     await user.type(screen.getByPlaceholderText('Front'), 'Capital of Spain');
     await user.type(screen.getByPlaceholderText('Back'), 'Madrid');
-    await user.click(screen.getByRole('button', { name: /add/i }));
+    await user.click(screen.getByRole('button', { name: /^add$/i }));
 
     expect(mockMutate).toHaveBeenCalledWith({
       deckId: 'deck-1',
@@ -215,7 +228,7 @@ describe('DeckCardsPage', () => {
     });
   });
 
-  it('does not submit add-card form with empty fields', async () => {
+  it('does not submit new card form with empty fields', async () => {
     setupMocks();
     const mockMutate = vi.fn();
     vi.mocked(trpc.card.create.useMutation).mockReturnValue({
@@ -229,7 +242,8 @@ describe('DeckCardsPage', () => {
     const user = userEvent.setup();
     renderDeckCardsPage();
 
-    await user.click(screen.getByRole('button', { name: /add/i }));
+    await user.click(screen.getByText('New Card'));
+    await user.click(screen.getByRole('button', { name: /^add$/i }));
 
     expect(mockMutate).not.toHaveBeenCalled();
   });
@@ -263,7 +277,6 @@ describe('DeckCardsPage', () => {
 
     await user.upload(fileInput, file);
 
-    // FileReader is async, wait for the mutate call
     await vi.waitFor(() => {
       expect(mockMutate).toHaveBeenCalledWith({
         deckId: 'deck-1',
@@ -338,49 +351,60 @@ describe('DeckCardsPage', () => {
     });
   });
 
-  it('renders deck header with Cards tab active', () => {
+  it('renders deck title and Cards tab active', () => {
     setupMocks();
     renderDeckCardsPage();
 
-    expect(
-      screen.getByRole('heading', { name: /world capitals/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByText('World Capitals')).toBeInTheDocument();
     const cardsTab = screen.getByRole('tab', { name: /cards/i });
     expect(cardsTab).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('renders edit and delete buttons for each card', () => {
-    setupMocks();
-    renderDeckCardsPage();
-
-    const editButtons = screen.getAllByRole('button', { name: /^edit$/i });
-    // Card-level delete buttons (excludes "Delete Deck" which has different text)
-    const cardDeleteButtons = screen.getAllByRole('button', {
-      name: /^delete$/i,
-    });
-    expect(editButtons).toHaveLength(2);
-    expect(cardDeleteButtons).toHaveLength(2);
-  });
-
-  it('enters edit mode when edit button is clicked', async () => {
+  it('makes deck title editable on click', async () => {
     setupMocks();
     const user = userEvent.setup();
     renderDeckCardsPage();
 
-    const editButtons = screen.getAllByRole('button', { name: /edit/i });
-    await user.click(editButtons[0]);
+    await user.click(screen.getByText('World Capitals'));
 
-    const frontInput = screen.getByDisplayValue('Capital of France');
-    const backInput = screen.getByDisplayValue('Paris');
-    expect(frontInput).toBeInTheDocument();
-    expect(backInput).toBeInTheDocument();
-    // Inline card save button appears (in addition to "Save Changes" for deck)
-    const saveButtons = screen.getAllByRole('button', { name: /^save$/i });
-    expect(saveButtons.length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+    const titleInput = screen.getByDisplayValue('World Capitals');
+    expect(titleInput).toBeInTheDocument();
+    expect(titleInput.tagName).toBe('INPUT');
   });
 
-  it('calls update mutation when save is clicked', async () => {
+  it('debounce-saves deck name when edited', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    setupMocks();
+    const mockMutate = vi.fn();
+    vi.mocked(trpc.deck.update.useMutation).mockReturnValue({
+      ...defaultMutationReturn,
+      mutate: mockMutate,
+    } as unknown as ReturnType<typeof trpc.deck.update.useMutation>);
+
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderDeckCardsPage();
+
+    await user.click(screen.getByText('World Capitals'));
+    const titleInput = screen.getByDisplayValue('World Capitals');
+    await user.clear(titleInput);
+    await user.type(titleInput, 'European Capitals');
+
+    // Not called yet (debounced)
+    expect(mockMutate).not.toHaveBeenCalled();
+
+    // Advance past debounce delay
+    vi.advanceTimersByTime(900);
+
+    expect(mockMutate).toHaveBeenCalledWith({
+      id: 'deck-1',
+      name: 'European Capitals',
+    });
+
+    vi.useRealTimers();
+  });
+
+  it('debounce-saves card text when edited', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     setupMocks();
     const mockMutate = vi.fn();
     vi.mocked(trpc.card.update.useMutation).mockReturnValue({
@@ -388,49 +412,27 @@ describe('DeckCardsPage', () => {
       mutate: mockMutate,
     } as unknown as ReturnType<typeof trpc.card.update.useMutation>);
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderDeckCardsPage();
 
-    const editButtons = screen.getAllByRole('button', { name: /edit/i });
-    await user.click(editButtons[0]);
+    const frontTextarea = screen.getByDisplayValue('Capital of France');
+    await user.clear(frontTextarea);
+    await user.type(frontTextarea, 'Capital of Italy');
 
-    const frontInput = screen.getByDisplayValue('Capital of France');
-    await user.clear(frontInput);
-    await user.type(frontInput, 'Capital of Italy');
+    expect(mockMutate).not.toHaveBeenCalled();
 
-    const saveButtons = screen.getAllByRole('button', { name: /save/i });
-    // First save button is the inline card save
-    await user.click(saveButtons[0]);
+    vi.advanceTimersByTime(900);
 
     expect(mockMutate).toHaveBeenCalledWith({
       cardId: 'card-1',
       front: 'Capital of Italy',
       back: 'Paris',
     });
+
+    vi.useRealTimers();
   });
 
-  it('cancels edit and restores original values', async () => {
-    setupMocks();
-    const user = userEvent.setup();
-    renderDeckCardsPage();
-
-    const editButtons = screen.getAllByRole('button', { name: /edit/i });
-    await user.click(editButtons[0]);
-
-    const frontInput = screen.getByDisplayValue('Capital of France');
-    await user.clear(frontInput);
-    await user.type(frontInput, 'Something else');
-
-    const cancelButton = screen.getByRole('button', { name: /cancel/i });
-    await user.click(cancelButton);
-
-    expect(screen.getByText('Capital of France')).toBeInTheDocument();
-    expect(
-      screen.queryByDisplayValue('Something else'),
-    ).not.toBeInTheDocument();
-  });
-
-  it('calls delete mutation when delete is confirmed', async () => {
+  it('calls delete mutation when card delete is confirmed', async () => {
     setupMocks();
     const mockMutate = vi.fn();
     vi.mocked(trpc.card.delete.useMutation).mockReturnValue({
@@ -442,14 +444,14 @@ describe('DeckCardsPage', () => {
     const user = userEvent.setup();
     renderDeckCardsPage();
 
-    const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+    const deleteButtons = screen.getAllByTitle('Delete card');
     await user.click(deleteButtons[0]);
 
     expect(window.confirm).toHaveBeenCalled();
     expect(mockMutate).toHaveBeenCalledWith({ cardId: 'card-1' });
   });
 
-  it('does not delete when confirmation is cancelled', async () => {
+  it('does not delete card when confirmation is cancelled', async () => {
     setupMocks();
     const mockMutate = vi.fn();
     vi.mocked(trpc.card.delete.useMutation).mockReturnValue({
@@ -461,44 +463,11 @@ describe('DeckCardsPage', () => {
     const user = userEvent.setup();
     renderDeckCardsPage();
 
-    const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+    const deleteButtons = screen.getAllByTitle('Delete card');
     await user.click(deleteButtons[0]);
 
     expect(window.confirm).toHaveBeenCalled();
     expect(mockMutate).not.toHaveBeenCalled();
-  });
-
-  it('renders deck edit form with name and description', () => {
-    setupMocks();
-    renderDeckCardsPage();
-
-    expect(
-      screen.getByRole('heading', { name: /deck settings/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText(/deck name/i)).toHaveValue('World Capitals');
-    expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
-  });
-
-  it('calls deck update mutation when deck name is changed', async () => {
-    setupMocks();
-    const mockMutate = vi.fn();
-    vi.mocked(trpc.deck.update.useMutation).mockReturnValue({
-      ...defaultMutationReturn,
-      mutate: mockMutate,
-    } as unknown as ReturnType<typeof trpc.deck.update.useMutation>);
-
-    const user = userEvent.setup();
-    renderDeckCardsPage();
-
-    const nameInput = screen.getByLabelText(/deck name/i);
-    await user.clear(nameInput);
-    await user.type(nameInput, 'European Capitals');
-    await user.click(screen.getByRole('button', { name: /save changes/i }));
-
-    expect(mockMutate).toHaveBeenCalledWith({
-      id: 'deck-1',
-      name: 'European Capitals',
-    });
   });
 
   it('calls deck delete and navigates home when confirmed', async () => {
@@ -544,5 +513,54 @@ describe('DeckCardsPage', () => {
     await user.click(screen.getByRole('button', { name: /delete deck/i }));
 
     expect(mockMutate).not.toHaveBeenCalled();
+  });
+
+  it('shows flip buttons on card tiles', () => {
+    setupMocks();
+    renderDeckCardsPage();
+
+    const flipButtons = screen.getAllByTitle('Flip to back');
+    expect(flipButtons.length).toBe(2);
+  });
+
+  it('shows Import CSV tile in the grid', () => {
+    setupMocks();
+    renderDeckCardsPage();
+
+    expect(screen.getByText('Import CSV')).toBeInTheDocument();
+  });
+
+  it('reverts card changes when revert button is clicked', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    setupMocks();
+    const mockMutate = vi.fn();
+    vi.mocked(trpc.card.update.useMutation).mockReturnValue({
+      ...defaultMutationReturn,
+      mutate: mockMutate,
+    } as unknown as ReturnType<typeof trpc.card.update.useMutation>);
+
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderDeckCardsPage();
+
+    const frontTextarea = screen.getByDisplayValue('Capital of France');
+    await user.clear(frontTextarea);
+    await user.type(frontTextarea, 'Something else');
+
+    // Revert button should appear
+    const revertButton = screen.getAllByTitle('Revert changes')[0];
+    expect(revertButton).toBeInTheDocument();
+    await user.click(revertButton);
+
+    // Should revert to original value
+    expect(screen.getByDisplayValue('Capital of France')).toBeInTheDocument();
+    expect(
+      screen.queryByDisplayValue('Something else'),
+    ).not.toBeInTheDocument();
+
+    // Advance timers — debounced save should NOT fire since we reverted
+    vi.advanceTimersByTime(900);
+    expect(mockMutate).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
   });
 });
