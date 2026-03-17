@@ -134,9 +134,19 @@ describe('DeckListPage', () => {
     expect(screen.getByText(/error/i)).toBeInTheDocument();
   });
 
-  it('shows create deck form', () => {
+  it('shows new deck card with plus icon by default', () => {
     setupMocks();
     renderDeckListPage();
+
+    expect(screen.getByText(/new deck/i)).toBeInTheDocument();
+  });
+
+  it('shows create form when new deck card is clicked', async () => {
+    setupMocks();
+    const user = userEvent.setup();
+    renderDeckListPage();
+
+    await user.click(screen.getByText(/new deck/i));
 
     expect(screen.getByPlaceholderText(/deck name/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument();
@@ -154,6 +164,7 @@ describe('DeckListPage', () => {
     const user = userEvent.setup();
     renderDeckListPage();
 
+    await user.click(screen.getByText(/new deck/i));
     await user.type(screen.getByPlaceholderText(/deck name/i), 'New Deck');
     await user.click(screen.getByRole('button', { name: /create/i }));
 
@@ -172,8 +183,17 @@ describe('DeckListPage', () => {
     const user = userEvent.setup();
     renderDeckListPage();
 
+    await user.click(screen.getByText(/new deck/i));
     await user.click(screen.getByRole('button', { name: /create/i }));
 
     expect(mockMutate).not.toHaveBeenCalled();
+  });
+
+  it('renders all deck tiles', () => {
+    setupMocks();
+    renderDeckListPage();
+
+    expect(screen.getByText('World Capitals')).toBeInTheDocument();
+    expect(screen.getByText('Math Facts')).toBeInTheDocument();
   });
 });

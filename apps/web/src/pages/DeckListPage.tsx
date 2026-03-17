@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { CenteredPage } from '@/components/CenteredPage';
 import { DeckListSkeleton } from '@/components/PageSkeleton';
+import { DeckCard } from '@/components/DeckCard';
 import { formatPercent } from '@/lib/format';
 
 export default function DeckListPage() {
+  const [isCreating, setIsCreating] = useState(false);
   const [newDeckName, setNewDeckName] = useState('');
   const utils = trpc.useUtils();
   const decksQuery = trpc.deck.list.useQuery();
@@ -17,6 +19,8 @@ export default function DeckListPage() {
   const createDeck = trpc.deck.create.useMutation({
     onSuccess: () => {
       utils.deck.list.invalidate();
+      setIsCreating(false);
+      setNewDeckName('');
     },
     onError: () => {
       toast.error('Failed to create deck');
@@ -39,65 +43,99 @@ export default function DeckListPage() {
 
   return (
     <CenteredPage>
-      <div className="w-full max-w-2xl text-soft-foreground">
+      <div className="w-full max-w-4xl text-soft-foreground">
         <h1 className="text-2xl font-bold">Your Decks</h1>
 
-        <form
-          className="mt-4 flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!newDeckName.trim()) return;
-            createDeck.mutate({ name: newDeckName.trim() });
-            setNewDeckName('');
-          }}
-        >
-          <Input
-            type="text"
-            value={newDeckName}
-            onChange={(e) => setNewDeckName(e.target.value)}
-            placeholder="Deck name"
-            className="flex-1"
-          />
-          <Button type="submit" disabled={createDeck.isPending}>
-            Create
-          </Button>
-        </form>
-
-        {decks.length === 0 ? (
+        {decks.length === 0 && !isCreating ? (
           <p className="mt-6 text-muted-foreground">
             No decks yet. Create one to get started.
           </p>
-        ) : (
-          <div className="mt-6 space-y-3">
-            {decks.map((deck) => (
-              <Link key={deck.id} to={`/decks/${deck.id}`} className="block">
-                <Card size="sm" className="transition-colors hover:bg-accent">
-                  <CardContent className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold">{deck.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {deck.cardCount} cards
-                      </p>
-                    </div>
-                    <div className="text-right text-sm text-muted-foreground">
-                      {deck.totalAttempts > 0 && (
-                        <p className="font-medium">
-                          {formatPercent(deck.accuracy)}
-                        </p>
-                      )}
-                      {deck.lastStudied && (
-                        <p>
-                          Last studied{' '}
-                          {new Date(deck.lastStudied).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        )}
+        ) : null}
+
+        <div className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-3">
+          {/* Create new deck card */}
+          {isCreating ? (
+            <DeckCard stackCount={0}>
+              <form
+                className="flex w-full flex-col items-center gap-3 px-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!newDeckName.trim()) return;
+                  createDeck.mutate({ name: newDeckName.trim() });
+                }}
+              >
+                <Input
+                  type="text"
+                  value={newDeckName}
+                  onChange={(e) => setNewDeckName(e.target.value)}
+                  placeholder="Deck name"
+                  autoFocus
+                  className="text-center"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={createDeck.isPending}
+                  >
+                    Create
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setIsCreating(false);
+                      setNewDeckName('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </DeckCard>
+          ) : (
+            <DeckCard
+              stackCount={0}
+              className="cursor-pointer transition-shadow hover:shadow-lg"
+              onClick={() => setIsCreating(true)}
+            >
+              <Plus className="h-10 w-10 text-muted-foreground" />
+              <p className="mt-2 text-sm font-medium text-muted-foreground">
+                New Deck
+              </p>
+            </DeckCard>
+          )}
+
+          {/* Deck tiles */}
+          {decks.map((deck) => (
+            <Link
+              key={deck.id}
+              to={`/decks/${deck.id}`}
+              className="block transition-shadow hover:shadow-lg"
+            >
+              <DeckCard stackCount={Math.min(deck.cardCount, 3)}>
+                <p className="text-center text-lg font-bold uppercase tracking-wide">
+                  {deck.name}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {deck.cardCount} cards
+                </p>
+                {deck.totalAttempts > 0 && (
+                  <p className="mt-2 text-sm font-medium">
+                    {formatPercent(deck.accuracy)}
+                  </p>
+                )}
+                {deck.lastStudied && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Last studied{' '}
+                    {new Date(deck.lastStudied).toLocaleDateString()}
+                  </p>
+                )}
+              </DeckCard>
+            </Link>
+          ))}
+        </div>
       </div>
     </CenteredPage>
   );

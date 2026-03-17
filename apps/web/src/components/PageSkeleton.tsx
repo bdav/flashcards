@@ -4,15 +4,11 @@ import { CenteredPage } from '@/components/CenteredPage';
 export function DeckListSkeleton() {
   return (
     <CenteredPage>
-      <div className="w-full max-w-2xl" role="status" aria-label="Loading">
+      <div className="w-full max-w-4xl" role="status" aria-label="Loading">
         <Skeleton className="h-8 w-40" />
-        <div className="mt-4 flex gap-2">
-          <Skeleton className="h-10 flex-1" />
-          <Skeleton className="h-10 w-20" />
-        </div>
-        <div className="mt-6 space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+        <div className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-3">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="aspect-3/2 w-full rounded-xl" />
           ))}
         </div>
       </div>
