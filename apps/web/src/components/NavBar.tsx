@@ -17,14 +17,11 @@ export function NavBar() {
   });
 
   const linkClass =
-    'flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-soft-foreground';
+    'flex items-center gap-1.5 text-sm font-medium text-white/70 transition-colors hover:text-white';
 
   return (
     <nav className="flex items-center gap-4 px-8 py-4">
-      <Link
-        to="/"
-        className="text-lg font-bold tracking-wide text-soft-foreground"
-      >
+      <Link to="/" className="text-lg font-bold tracking-wide text-white">
         Flashcards
       </Link>
       <Link to="/" className={linkClass} aria-label="Home">

@@ -11,7 +11,7 @@ export function CenteredPage({
 }: CenteredPageProps) {
   return (
     <main
-      className={`flex min-h-screen flex-col items-center px-4 py-8 ${centered ? 'justify-center' : ''}`}
+      className={`flex flex-1 flex-col items-center px-4 py-8 ${centered ? 'justify-center' : ''}`}
     >
       {children}
     </main>

@@ -43,11 +43,11 @@ export default function DeckListPage() {
 
   return (
     <CenteredPage>
-      <div className="w-full max-w-4xl text-soft-foreground">
+      <div className="w-full max-w-4xl text-white">
         <h1 className="text-2xl font-bold">Your Decks</h1>
 
         {decks.length === 0 && !isCreating ? (
-          <p className="mt-6 text-muted-foreground">
+          <p className="mt-6 text-white/60">
             No decks yet. Create one to get started.
           </p>
         ) : null}
@@ -100,10 +100,8 @@ export default function DeckListPage() {
               className="cursor-pointer transition-shadow hover:shadow-lg"
               onClick={() => setIsCreating(true)}
             >
-              <Plus className="h-10 w-10 text-muted-foreground" />
-              <p className="mt-2 text-sm font-medium text-muted-foreground">
-                New Deck
-              </p>
+              <Plus className="h-10 w-10 text-white/60" />
+              <p className="mt-2 text-sm font-medium text-white/60">New Deck</p>
             </DeckCard>
           )}
 
@@ -115,19 +113,19 @@ export default function DeckListPage() {
               className="block transition-shadow hover:shadow-lg"
             >
               <DeckCard stackCount={Math.min(deck.cardCount, 3)}>
-                <p className="text-center text-lg font-bold uppercase tracking-wide">
+                <p className="text-center text-lg font-bold uppercase tracking-wide text-white">
                   {deck.name}
                 </p>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-sm text-white/60">
                   {deck.cardCount} cards
                 </p>
                 {deck.totalAttempts > 0 && (
-                  <p className="mt-2 text-sm font-medium">
+                  <p className="mt-2 text-sm font-medium text-white/80">
                     {formatPercent(deck.accuracy)}
                   </p>
                 )}
                 {deck.lastStudied && (
-                  <p className="mt-0.5 text-xs text-muted-foreground">
+                  <p className="mt-0.5 text-xs text-white/50">
                     Last studied{' '}
                     {new Date(deck.lastStudied).toLocaleDateString()}
                   </p>

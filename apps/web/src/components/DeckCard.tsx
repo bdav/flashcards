@@ -15,7 +15,7 @@ export function DeckCard({
 }: DeckCardProps) {
   return (
     <div
-      className={`relative w-full rounded-b-xl rounded-t-3xl border-border pt-3 ${className ?? ''}`}
+      className={`relative w-full rounded-b-xl rounded-t-3xl pt-3 ${className ?? ''}`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -31,12 +31,12 @@ export function DeckCard({
       }
     >
       {stackCount > 2 && (
-        <div className="absolute inset-x-2 top-0 h-4 rounded-t-xl border border-b-0 border-inherit bg-white shadow-sm" />
+        <div className="absolute inset-x-2 top-0 h-4 rounded-t-xl border border-b-0 border-white/30 bg-white/10" />
       )}
       {stackCount > 1 && (
-        <div className="absolute inset-x-1 top-1.5 h-4 rounded-t-xl border border-b-0 border-inherit bg-white shadow-sm" />
+        <div className="absolute inset-x-1 top-1.5 h-4 rounded-t-xl border border-b-0 border-white/30 bg-white/10" />
       )}
-      <div className="relative flex aspect-3/2 w-full flex-col items-center justify-center rounded-xl border border-inherit bg-white p-4 shadow-md">
+      <div className="relative flex aspect-3/2 w-full flex-col items-center justify-center rounded-xl border border-white/30 bg-white/10 p-4 backdrop-blur-sm">
         {children}
       </div>
     </div>

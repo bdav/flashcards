@@ -12,10 +12,10 @@ import { DeckHeader } from '@/components/DeckHeader';
 import { formatPercent } from '@/lib/format';
 
 const answerInputClasses =
-  'h-auto flex-1 rounded-none border-0 border-b-2 border-border py-2 text-center text-3xl font-bold uppercase tracking-wide shadow-none focus-visible:ring-0 md:text-3xl text-soft-foreground';
+  'h-auto flex-1 rounded-none border-0 border-b-2 border-white/40 bg-transparent py-2 text-center text-3xl font-bold uppercase tracking-wide text-white shadow-none focus-visible:ring-0 md:text-3xl placeholder:text-white/30';
 
 const navButtonClasses =
-  'absolute top-1/2 h-16 w-16 -translate-y-1/2 active:translate-y-[-50%] text-soft-muted-foreground disabled:opacity-40';
+  'absolute top-1/2 h-16 w-16 -translate-y-1/2 active:translate-y-[-50%] text-white/50 disabled:opacity-40';
 
 export default function StudyPage() {
   const { deckId } = useParams<{ deckId: string }>();
@@ -59,11 +59,11 @@ export default function StudyPage() {
   if (cards.length === 0) {
     return (
       <CenteredPage centered>
-        <h1 className="text-2xl font-bold">{deck.name}</h1>
-        <p className="mt-4 text-muted-foreground">This deck has no cards.</p>
+        <h1 className="text-2xl font-bold text-white">{deck.name}</h1>
+        <p className="mt-4 text-white/60">This deck has no cards.</p>
         <Link
           to={`/decks/${deckId}/cards`}
-          className="mt-2 text-primary underline hover:text-primary/80"
+          className="mt-2 text-white/80 underline hover:text-white"
         >
           Add cards
         </Link>
@@ -86,10 +86,10 @@ export default function StudyPage() {
             className="animate-pulse-halo-border cursor-pointer"
             onClick={handleStart}
           >
-            <p className="text-3xl font-bold text-soft-foreground">
+            <p className="text-3xl font-bold text-white">
               {cards.length} cards
             </p>
-            <p className="mt-4 text-lg text-soft-foreground">Start studying</p>
+            <p className="mt-4 text-lg text-white/70">Start studying</p>
           </CardStack>
           <div className="mt-6 w-full max-w-md">
             <div className="py-2 text-3xl">&nbsp;</div>
@@ -128,19 +128,19 @@ export default function StudyPage() {
           activeTab="study"
         />
         <div className="flex w-full flex-1 flex-col items-center justify-center">
-          <h2 className="text-2xl font-bold">Session complete!</h2>
-          <p className="mt-2 text-muted-foreground">
+          <h2 className="text-2xl font-bold text-white">Session complete!</h2>
+          <p className="mt-2 text-white/60">
             You studied all {cards.length} cards.
           </p>
           <div className="mt-4 flex gap-6 text-lg">
-            <span className="font-semibold text-green-600">
+            <span className="font-semibold text-green-400">
               {correctCount} correct
             </span>
-            <span className="font-semibold text-red-600">
+            <span className="font-semibold text-red-400">
               {incorrectCount} incorrect
             </span>
           </div>
-          <p className="mt-2 text-muted-foreground">
+          <p className="mt-2 text-white/60">
             First-try accuracy: {formatPercent(firstTryAccuracy)}
           </p>
           <Button className="mt-6" onClick={handleStart}>
@@ -184,7 +184,7 @@ export default function StudyPage() {
             }
           >
             {studyState.phase === 'answering' && displayCard && (
-              <p className="text-center text-3xl font-bold uppercase tracking-wide text-soft-foreground">
+              <p className="text-center text-3xl font-bold uppercase tracking-wide text-white">
                 {displayCard.front}
               </p>
             )}
@@ -192,20 +192,20 @@ export default function StudyPage() {
               displayCard &&
               displayResult && (
                 <div
-                  className="text-center text-soft-foreground"
+                  className="text-center text-white"
                   data-testid="correct-answer"
                 >
-                  <p className="text-sm uppercase tracking-wide text-muted-foreground">
+                  <p className="text-sm uppercase tracking-wide text-white/50">
                     {displayCard.front}
                   </p>
-                  <p className="mt-2 text-3xl font-bold uppercase tracking-wide text-soft-foreground">
+                  <p className="mt-2 text-3xl font-bold uppercase tracking-wide text-white">
                     {displayCard.back}
                   </p>
                   <p
                     className={`mt-4 text-lg font-semibold ${
                       displayResult.result === 'correct'
-                        ? 'text-green-600'
-                        : 'text-red-600'
+                        ? 'text-green-400'
+                        : 'text-red-400'
                     }`}
                     data-testid="result"
                   >
@@ -268,7 +268,7 @@ export default function StudyPage() {
                 size="icon"
                 aria-label="Submit"
                 disabled={!answerInput.trim()}
-                className={`absolute right-0 top-1/2 -translate-y-1/2 active:translate-y-[-50%] text-soft-muted-foreground disabled:opacity-40 ${answerInput.trim() ? 'animate-pulse-halo' : ''}`}
+                className={`absolute right-0 top-1/2 -translate-y-1/2 active:translate-y-[-50%] text-white/50 disabled:opacity-40 ${answerInput.trim() ? 'animate-pulse-halo' : ''}`}
               >
                 <CornerDownLeft className="size-7" />
               </Button>
@@ -276,7 +276,7 @@ export default function StudyPage() {
           )}
 
           {(studyState.phase === 'result' || isReviewing) && displayResult && (
-            <p className="py-2 text-center text-3xl font-bold uppercase tracking-wide text-soft-foreground">
+            <p className="py-2 text-center text-3xl font-bold uppercase tracking-wide text-white">
               {displayResult.userAnswer}
             </p>
           )}
