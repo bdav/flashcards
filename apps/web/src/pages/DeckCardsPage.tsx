@@ -143,7 +143,7 @@ export default function DeckCardsPage() {
 
   return (
     <CenteredPage>
-      <div className="w-full max-w-2xl text-soft-foreground">
+      <div className="w-full max-w-2xl text-white">
         <DeckHeader deckName={deck.name} deckId={deckId} activeTab="cards" />
 
         <div className="mt-6">
@@ -187,7 +187,7 @@ export default function DeckCardsPage() {
 
         <div className="mt-6">
           <h2 className="text-lg font-semibold">Import CSV</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-white/60">
             CSV must have <code>front</code> and <code>back</code> columns.
           </p>
           <div className="mt-2 flex gap-2">
@@ -214,7 +214,7 @@ export default function DeckCardsPage() {
         <div className="mt-8">
           <h2 className="text-lg font-semibold">All Cards ({cards.length})</h2>
           {cards.length === 0 ? (
-            <p className="mt-3 text-muted-foreground">
+            <p className="mt-3 text-white/60">
               No cards yet. Add cards above or import a CSV.
             </p>
           ) : (
@@ -310,7 +310,7 @@ export default function DeckCardsPage() {
           )}
         </div>
 
-        <div className="mt-10 border-t pt-6">
+        <div className="mt-10 border-t border-white/20 pt-6">
           <h2 className="text-lg font-semibold">Deck Settings</h2>
           <form
             key={`${deck.name}|${deck.description ?? ''}`}

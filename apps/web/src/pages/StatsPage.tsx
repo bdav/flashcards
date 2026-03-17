@@ -29,8 +29,8 @@ export default function StatsPage() {
   if (stats.totalAttempts === 0) {
     return (
       <CenteredPage centered>
-        <h1 className="text-2xl font-bold">Stats</h1>
-        <p className="mt-2 text-muted-foreground">
+        <h1 className="text-2xl font-bold text-white">Stats</h1>
+        <p className="mt-2 text-white/60">
           No study data yet. Study a deck to see your stats here.
         </p>
       </CenteredPage>
@@ -39,7 +39,7 @@ export default function StatsPage() {
 
   return (
     <CenteredPage>
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-2xl text-white">
         <h1 className="text-2xl font-bold">Stats</h1>
 
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -58,7 +58,7 @@ export default function StatsPage() {
         {stats.weakCards.length > 0 && (
           <div className="mt-8">
             <h2 className="text-lg font-semibold">Needs Work</h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-white/60">
               Cards that take multiple attempts to get right
             </p>
             <div className="mt-3 space-y-2">
@@ -66,7 +66,7 @@ export default function StatsPage() {
                 <Card key={card.cardId} size="sm">
                   <CardContent className="flex items-center justify-between">
                     <span className="text-sm">{card.front}</span>
-                    <span className="text-sm font-medium text-muted-foreground">
+                    <span className="text-sm font-medium text-white/60">
                       {card.avgAttemptsToCorrect.toFixed(1)}
                     </span>
                   </CardContent>

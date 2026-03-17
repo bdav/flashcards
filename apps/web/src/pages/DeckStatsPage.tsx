@@ -45,8 +45,8 @@ export default function DeckStatsPage() {
   if (!stats || stats.totalAttempts === 0) {
     return (
       <CenteredPage centered>
-        <h1 className="text-2xl font-bold">{deckName}</h1>
-        <p className="mt-2 text-muted-foreground">
+        <h1 className="text-2xl font-bold text-white">{deckName}</h1>
+        <p className="mt-2 text-white/60">
           No study data yet. Study this deck to see stats here.
         </p>
       </CenteredPage>
@@ -55,7 +55,7 @@ export default function DeckStatsPage() {
 
   return (
     <CenteredPage>
-      <div className="w-full max-w-2xl text-soft-foreground">
+      <div className="w-full max-w-2xl text-white">
         <DeckHeader
           deckName={deckName}
           deckId={deckId ?? ''}
@@ -98,7 +98,7 @@ export default function DeckStatsPage() {
                     <TableCell className="py-4 font-medium">
                       {card.front}
                     </TableCell>
-                    <TableCell className="py-4 text-right text-muted-foreground">
+                    <TableCell className="py-4 text-right text-white/60">
                       {card.totalAttempts}
                     </TableCell>
                     <TableCell className="py-4 text-right font-medium">
