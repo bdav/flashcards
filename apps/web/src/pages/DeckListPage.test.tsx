@@ -148,8 +148,8 @@ describe('DeckListPage', () => {
 
     await user.click(screen.getByText(/new deck/i));
 
-    expect(screen.getByPlaceholderText(/deck name/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument();
+    expect(screen.getByText(/deck name/i)).toBeInTheDocument();
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
   });
 
   it('calls create mutation when form is submitted', async () => {
@@ -165,8 +165,8 @@ describe('DeckListPage', () => {
     renderDeckListPage();
 
     await user.click(screen.getByText(/new deck/i));
-    await user.type(screen.getByPlaceholderText(/deck name/i), 'New Deck');
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await user.type(screen.getByRole('textbox'), 'New Deck');
+    await user.keyboard('{Enter}');
 
     expect(mockMutate).toHaveBeenCalledWith({ name: 'New Deck' });
   });
@@ -184,7 +184,7 @@ describe('DeckListPage', () => {
     renderDeckListPage();
 
     await user.click(screen.getByText(/new deck/i));
-    await user.click(screen.getByRole('button', { name: /create/i }));
+    await user.keyboard('{Enter}');
 
     expect(mockMutate).not.toHaveBeenCalled();
   });
