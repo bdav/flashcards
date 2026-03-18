@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { trpc } from '@/lib/trpc';
 import { CenteredPage } from '@/components/CenteredPage';
 import { StatsSkeleton } from '@/components/PageSkeleton';
@@ -104,7 +105,12 @@ export default function StatsPage() {
               {deckGroups.map((group) => (
                 <div key={group.deckId}>
                   <h3 className="mb-2 text-sm font-medium text-white/80">
-                    {group.deckName}
+                    <Link
+                      to={`/decks/${group.deckId}`}
+                      className="hover:text-white underline underline-offset-2"
+                    >
+                      {group.deckName}
+                    </Link>
                   </h3>
                   <Table>
                     <TableHeader>

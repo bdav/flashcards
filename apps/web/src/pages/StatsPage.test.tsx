@@ -120,9 +120,11 @@ describe('StatsPage', () => {
     renderStatsPage();
 
     expect(screen.getByText(/needs work/i)).toBeInTheDocument();
-    // Deck names appear as group headings
-    expect(screen.getByText('Geography')).toBeInTheDocument();
-    expect(screen.getByText('Math')).toBeInTheDocument();
+    // Deck names appear as links to study pages
+    const geoLink = screen.getByRole('link', { name: 'Geography' });
+    expect(geoLink).toHaveAttribute('href', '/decks/deck-1');
+    const mathLink = screen.getByRole('link', { name: 'Math' });
+    expect(mathLink).toHaveAttribute('href', '/decks/deck-2');
     // Card data in tables
     expect(screen.getByText('Capital of France?')).toBeInTheDocument();
     expect(screen.getByText('What is 2+2?')).toBeInTheDocument();
