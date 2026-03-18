@@ -55,13 +55,8 @@ export default function DeckStatsPage() {
 
   return (
     <CenteredPage>
-      <div className="w-full max-w-2xl text-white">
-        <DeckHeader
-          deckName={deckName}
-          deckId={deckId ?? ''}
-          activeTab="stats"
-        />
-
+      <DeckHeader deckName={deckName} deckId={deckId ?? ''} activeTab="stats" />
+      <div className="w-full max-w-4xl text-white">
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard
             label="Total Attempts"
