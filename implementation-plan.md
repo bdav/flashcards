@@ -358,7 +358,7 @@ Capital of France,Paris
 
 ### Later Nice-to-Haves
 
-- import preview before commit
+- ~~import preview before commit~~ → PR 19a/19b
 - alternate headers
 - multiline support
 - duplicate detection
@@ -1328,6 +1328,86 @@ existing Cards tab; deck edit/delete is accessible from the deck view.
 - `pnpm db:seed` populates full demo data
 - README is complete and accurate
 - a new developer can set up the project from the README alone
+
+---
+
+### PR 19a: Import Preview — Backend
+
+**Scope:** Lenient CSV parsing and a `previewImport` query that categorizes rows before
+committing, so the frontend can show a preview dialog.
+
+**TDD Sequence — write tests first for:**
+
+1. lenient CSV parsing returns valid cards and error rows separately
+2. lenient parsing collects rows missing front with reason "Missing front"
+3. lenient parsing collects rows missing back with reason "Missing back"
+4. lenient parsing still rejects invalid headers entirely
+5. lenient parsing still trims whitespace and skips blank rows
+6. `previewImport` returns new cards in `importing`
+7. `previewImport` returns exact duplicates (front+back match) in `notImporting` with reason "Duplicate"
+8. `previewImport` returns cards with updated backs in `importing` (not as duplicates)
+9. `previewImport` returns malformed CSV rows in `notImporting` with reason
+10. `previewImport` dedupes within the CSV (last occurrence wins)
+11. `previewImport` rejects wrong headers with BAD_REQUEST
+12. `previewImport` enforces deck ownership
+
+**Tasks:**
+
+- add `parseCsvLenient` to `services/csvParser.ts` — reuses existing `parseLines()` helper,
+  returns `{ ok: true, cards: [...], errors: [{front?, back?, reason}] }` or
+  `{ ok: false, error: string }` for header failures
+- add `card.previewImport` query to `routers/card.ts` — parses CSV leniently, diffs valid
+  rows against existing deck cards (case-insensitive on front, same logic as `importCsv`),
+  returns `{ importing: [{front, back}], notImporting: [{front?, back?, reason}] }`
+
+**Definition of Done:**
+
+- all lenient CSV parser unit tests pass
+- all `previewImport` integration tests pass
+- existing `parseCsv` and `importCsv` tests still pass (no regressions)
+
+---
+
+### PR 19b: Import Preview — Frontend
+
+**Scope:** After selecting a CSV file, show a preview dialog before importing. Users can
+review, edit, and remove rows before committing.
+
+**Tasks:**
+
+- install shadcn Dialog component (`npx shadcn@latest add dialog`)
+- create `ImportPreviewDialog` component using shadcn Dialog + Table:
+  - sticky header with title "Import Preview"
+  - **"Importing" table**: columns Front (editable Input), Back (editable Input), Remove (Trash2 icon).
+    Row count in section heading. Local state copy of rows for editing/removal.
+  - **"Not importing" table** (conditional, only if non-empty): columns Front, Back, Reason.
+    Read-only, styled muted/dimmer.
+  - sticky footer with "Cancel" (secondary) and "Import" (primary) buttons
+  - scrollable content pane between sticky header and footer
+  - Import button disabled when no importing rows remain or when import is pending
+- update `DeckCardsPage` CSV import flow:
+  - after file select, call `previewImport` instead of `importCsv`
+  - on preview success, open `ImportPreviewDialog` with results
+  - on dialog confirm, reconstruct CSV from edited rows and call existing `importCsv`
+  - on dialog cancel, close dialog and reset state
+- CSV reconstruction helper: properly escapes commas and quotes in field values
+
+**Tests:**
+
+- file upload triggers `previewImport` (not `importCsv` directly)
+- preview dialog opens showing importing and not-importing tables
+- Import button in dialog calls `importCsv` with curated CSV content
+- Cancel closes dialog without importing
+
+**Definition of Done:**
+
+- user can preview CSV contents before importing
+- can edit front/back values in the preview
+- can remove rows from the preview
+- malformed rows and duplicates are shown separately with reasons
+- confirm imports only the curated rows
+- cancel discards without side effects
+- all frontend tests pass
 
 ---
 
