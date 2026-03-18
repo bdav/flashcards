@@ -6,6 +6,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import DeckListPage from './DeckListPage';
 import { trpc } from '@/lib/trpc';
 
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 vi.mock('@/lib/trpc', () => ({
   trpc: {
     useUtils: vi.fn(() => ({
@@ -176,6 +185,30 @@ describe('DeckListPage', () => {
     await user.keyboard('{Enter}');
 
     expect(mockMutate).toHaveBeenCalledWith({ name: 'New Deck' });
+  });
+
+  it('navigates to new deck after successful creation', async () => {
+    setupMocks();
+    let onSuccessCallback: (data: { id: string }) => void;
+    vi.mocked(trpc.deck.create.useMutation).mockImplementation(
+      (opts: { onSuccess?: (data: { id: string }) => void } = {}) => {
+        onSuccessCallback = opts.onSuccess!;
+        return {
+          mutate: vi.fn(() => onSuccessCallback({ id: 'new-deck-123' })),
+          mutateAsync: vi.fn(),
+          isPending: false,
+        } as unknown as ReturnType<typeof trpc.deck.create.useMutation>;
+      },
+    );
+
+    const user = userEvent.setup();
+    renderDeckListPage();
+
+    await user.click(screen.getByText(/new deck/i));
+    await user.type(screen.getByRole('textbox'), 'New Deck');
+    await user.keyboard('{Enter}');
+
+    expect(mockNavigate).toHaveBeenCalledWith('/decks/new-deck-123');
   });
 
   it('does not submit create form with empty name', async () => {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { CornerDownLeft, Plus, Trash2, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
@@ -19,11 +19,11 @@ export default function DeckListPage() {
   const utils = trpc.useUtils();
   const decksQuery = trpc.deck.list.useQuery();
 
+  const navigate = useNavigate();
   const createDeck = trpc.deck.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       utils.deck.list.invalidate();
-      setIsCreating(false);
-      setNewDeckName('');
+      navigate(`/decks/${data.id}`);
     },
     onError: () => {
       toast.error('Failed to create deck');

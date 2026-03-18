@@ -34,11 +34,11 @@ export function ConfirmDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white">
+          <AlertDialogCancel className="cursor-pointer select-none border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white">
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
-            className="border-red-500/30 bg-red-500/20 text-red-300 hover:bg-red-500/30 hover:text-red-200"
+            className="cursor-pointer select-none border-red-500/30 bg-red-500/20 text-red-300 hover:bg-red-500/30 hover:text-red-200"
             onClick={onConfirm}
           >
             {confirmLabel}
