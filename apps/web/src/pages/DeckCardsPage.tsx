@@ -383,7 +383,7 @@ export default function DeckCardsPage() {
                               }
                             }}
                             autoFocus
-                            className="w-full border-0 border-b-2 border-white/40 bg-transparent py-2 text-center text-lg font-bold uppercase tracking-wide text-white outline-none focus:border-white/60"
+                            className="w-full border-0 border-b-2 border-white/40 bg-transparent py-2 text-center text-lg font-bold tracking-wide text-white outline-none focus:border-white/60"
                           />
                           <Button
                             type="button"
@@ -449,7 +449,7 @@ export default function DeckCardsPage() {
                                 cancelCreate();
                               }
                             }}
-                            className="w-full border-0 border-b-2 border-white/40 bg-transparent py-2 text-center text-lg font-bold uppercase tracking-wide text-white outline-none focus:border-white/60"
+                            className="w-full border-0 border-b-2 border-white/40 bg-transparent py-2 text-center text-lg font-bold tracking-wide text-white outline-none focus:border-white/60"
                           />
                           <Button
                             type="submit"

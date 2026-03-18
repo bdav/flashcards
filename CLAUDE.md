@@ -62,13 +62,13 @@ TDD is most valuable for: CSV parsing, auth helpers, permission/ownership rules,
 
 ## Current State (MVP Complete)
 
-The full MVP from `implementation-plan.md` is implemented. All 18 planned PRs are delivered. 119 API tests, 103 web tests passing.
+The full MVP from `implementation-plan.md` is implemented, plus PR 19 (Import Preview). All 19 planned PRs are delivered.
 
 ### Features
 
 - **Auth**: Email/password signup & login, bcrypt password hashing, session cookies (HTTP-only), protected routes with redirect to `/login`
 - **Decks**: Create, list (with summary stats: accuracy, card count, last studied), update name/description, delete with cascade
-- **Cards**: Create single cards, CSV import (header validation, whitespace trimming, blank row skipping), update (partial), delete, list by deck
+- **Cards**: Create single cards, CSV import with preview (client-side parsing, diff against existing cards, editable preview dialog, structured `importCards` mutation), update (partial), delete, list by deck
 - **Study**: Type-answer flow with server-side grading, flashcard-style UI (front/back), incorrect cards re-queued, multi-attempt tracking with `attemptNumber`, session start/finish lifecycle
 - **Stats**: Per-deck stats (first-try accuracy, overall accuracy, per-card avg attempts-to-correct), overall stats (aggregates + weak cards), empty/loading/error states
 - **UX Polish**: Loading skeletons, Sonner toast notifications, error boundaries (app root + per-route), seed data (4 decks, 30 cards, 3 study sessions)
@@ -95,7 +95,7 @@ All procedures except `auth.*` and `healthCheck` require authentication via `pro
 | `auth`  | `me`                                             | query    |
 | `deck`  | `create`, `update`, `delete`                     | mutation |
 | `deck`  | `getById`, `list`                                | query    |
-| `card`  | `create`, `update`, `delete`, `importCsv`        | mutation |
+| `card`  | `create`, `update`, `delete`, `importCards`      | mutation |
 | `card`  | `listByDeck`                                     | query    |
 | `study` | `startSession`, `submitAttempt`, `finishSession` | mutation |
 | `study` | `getSession`                                     | query    |
@@ -117,7 +117,7 @@ Five models in `prisma/schema.prisma`: `User`, `Deck`, `Card`, `StudySession`, `
 
 ## Implementation Plan
 
-See `implementation-plan.md` for the original plan, PR breakdown, and design decisions. The plan is fully delivered. Future work is post-MVP.
+See `implementation-plan.md` for the original plan, PR breakdown, and design decisions. All planned PRs (1–19) are delivered. Future work is post-MVP.
 
 ### Post-MVP Enhancement Ideas
 
@@ -126,4 +126,3 @@ See `implementation-plan.md` for the original plan, PR breakdown, and design dec
 - **PostgreSQL deployment**: Schema is Postgres-ready, swap adapter + connection string
 - **E2E tests**: Playwright for core user journeys
 - **Deck sharing / public marketplace**
-- **Import preview before commit**

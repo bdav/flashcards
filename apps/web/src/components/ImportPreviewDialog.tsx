@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import type { CSSProperties } from 'react';
+import { useCallback, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,10 +19,52 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type { NewCard, UpdateCard, SkippedRow } from '@/lib/csvDiff';
 
 const glassInputClassName =
   'rounded-none border-0 border-b-2 border-white/40 bg-transparent text-white shadow-none focus-visible:ring-0 focus-visible:border-white/70 placeholder-white/40';
+
+function TruncatedCell({
+  children,
+  className,
+}: {
+  children: string;
+  className?: string;
+}) {
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  const ref = useCallback((node: HTMLSpanElement | null) => {
+    if (node) {
+      setIsTruncated(node.scrollWidth > node.clientWidth);
+    }
+  }, []);
+
+  const span = (
+    <span ref={ref} className={`block truncate ${className ?? ''}`}>
+      {children}
+    </span>
+  );
+
+  if (!isTruncated) return span;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{span}</TooltipTrigger>
+      <TooltipContent
+        side="top"
+        className="max-w-sm break-words bg-[oklch(0.2_0.06_230)] text-white border border-white/20"
+        style={{ '--tooltip-bg': 'oklch(0.2 0.06 230)' } as CSSProperties}
+      >
+        {children}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 interface ImportPreviewDialogProps {
   open: boolean;
@@ -170,11 +213,15 @@ export function ImportPreviewDialog({
                 <TableBody>
                   {updateCards.map((card, i) => (
                     <TableRow key={card.cardId} data-testid="update-card-row">
-                      <TableCell className="py-2 font-medium text-white/80 truncate max-w-[10rem]">
-                        {card.front}
+                      <TableCell className="py-2 max-w-[10rem]">
+                        <TruncatedCell className="font-medium text-white/80">
+                          {card.front}
+                        </TruncatedCell>
                       </TableCell>
-                      <TableCell className="py-2 text-white/60 line-through truncate max-w-[8rem]">
-                        {card.oldBack}
+                      <TableCell className="py-2 max-w-[8rem]">
+                        <TruncatedCell className="text-white/60 line-through">
+                          {card.oldBack}
+                        </TruncatedCell>
                       </TableCell>
                       <TableCell className="py-2">
                         <Input
@@ -225,11 +272,15 @@ export function ImportPreviewDialog({
                       className="hover:bg-transparent"
                       data-testid="skipped-row"
                     >
-                      <TableCell className="py-2 text-white/60 truncate max-w-[10rem]">
-                        {row.front}
+                      <TableCell className="py-2 max-w-[10rem]">
+                        <TruncatedCell className="text-white/60">
+                          {row.front}
+                        </TruncatedCell>
                       </TableCell>
-                      <TableCell className="py-2 text-white/60 truncate max-w-[8rem]">
-                        {row.back}
+                      <TableCell className="py-2 max-w-[8rem]">
+                        <TruncatedCell className="text-white/60">
+                          {row.back}
+                        </TruncatedCell>
                       </TableCell>
                       <TableCell className="py-2 text-white/70 text-xs italic">
                         {row.reason}
