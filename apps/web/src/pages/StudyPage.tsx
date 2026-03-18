@@ -120,6 +120,7 @@ export default function StudyPage() {
     handleForward,
     canGoBack,
     reviewEntry,
+    resetToIdle,
   } = useStudySession(deckId, cardQueue);
 
   const currentCard = cardQueue.currentCard;
@@ -301,7 +302,7 @@ export default function StudyPage() {
           <div className="mt-6">
             <button
               autoFocus
-              onClick={handleStart}
+              onClick={resetToIdle}
               className="animate-pulse-halo cursor-pointer bg-transparent text-lg font-semibold text-white focus:outline-none"
             >
               Study again

@@ -207,6 +207,10 @@ export function useStudySession(
     });
   }, []);
 
+  const resetToIdle = useCallback(() => {
+    setStudyState({ phase: 'idle' });
+  }, []);
+
   return {
     studyState,
     isFlipped,
@@ -222,5 +226,6 @@ export function useStudySession(
     handleForward,
     canGoBack,
     reviewEntry,
+    resetToIdle,
   };
 }
