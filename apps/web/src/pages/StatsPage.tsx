@@ -2,8 +2,45 @@ import { trpc } from '@/lib/trpc';
 import { CenteredPage } from '@/components/CenteredPage';
 import { StatsSkeleton } from '@/components/PageSkeleton';
 import { StatCard } from '@/components/StatCard';
-import { Card, CardContent } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { formatPercent } from '@/lib/format';
+
+interface WeakCard {
+  cardId: string;
+  front: string;
+  deckId: string;
+  deckName: string;
+  avgAttemptsToCorrect: number;
+}
+
+function groupByDeck(cards: WeakCard[]) {
+  const groups: { deckId: string; deckName: string; cards: WeakCard[] }[] = [];
+  const map = new Map<string, WeakCard[]>();
+
+  for (const card of cards) {
+    const existing = map.get(card.deckId);
+    if (existing) {
+      existing.push(card);
+    } else {
+      const group: WeakCard[] = [card];
+      map.set(card.deckId, group);
+      groups.push({
+        deckId: card.deckId,
+        deckName: card.deckName,
+        cards: group,
+      });
+    }
+  }
+
+  return groups;
+}
 
 export default function StatsPage() {
   const statsQuery = trpc.stats.overallStats.useQuery();
@@ -37,6 +74,8 @@ export default function StatsPage() {
     );
   }
 
+  const deckGroups = groupByDeck(stats.weakCards);
+
   return (
     <CenteredPage>
       <div className="w-full max-w-2xl text-white">
@@ -55,22 +94,41 @@ export default function StatsPage() {
           <StatCard label="Decks Studied" value={String(stats.deckCount)} />
         </div>
 
-        {stats.weakCards.length > 0 && (
+        {deckGroups.length > 0 && (
           <div className="mt-8">
             <h2 className="text-lg font-semibold">Needs Work</h2>
             <p className="text-sm text-white/60">
               Cards that take multiple attempts to get right
             </p>
-            <div className="mt-3 space-y-2">
-              {stats.weakCards.map((card) => (
-                <Card key={card.cardId} size="sm">
-                  <CardContent className="flex items-center justify-between">
-                    <span className="text-sm">{card.front}</span>
-                    <span className="text-sm font-medium text-white/60">
-                      {card.avgAttemptsToCorrect.toFixed(1)}
-                    </span>
-                  </CardContent>
-                </Card>
+            <div className="mt-4 space-y-6">
+              {deckGroups.map((group) => (
+                <div key={group.deckId}>
+                  <h3 className="mb-2 text-sm font-medium text-white/80">
+                    {group.deckName}
+                  </h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Question</TableHead>
+                        <TableHead className="text-right">
+                          Avg. Attempts
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {group.cards.map((card) => (
+                        <TableRow key={card.cardId}>
+                          <TableCell className="py-4 font-medium">
+                            {card.front}
+                          </TableCell>
+                          <TableCell className="py-4 text-right font-medium">
+                            {card.avgAttemptsToCorrect.toFixed(1)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               ))}
             </div>
           </div>

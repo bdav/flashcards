@@ -46,6 +46,7 @@ describe('StatsPage', () => {
             cardId: 'card-1',
             front: 'Capital of France?',
             deckId: 'deck-1',
+            deckName: 'Geography',
             avgAttemptsToCorrect: 2.5,
           },
         ],
@@ -81,7 +82,7 @@ describe('StatsPage', () => {
     expect(screen.getByText(/no study data yet/i)).toBeInTheDocument();
   });
 
-  it('renders weak cards section when weak cards exist', () => {
+  it('renders weak cards grouped by deck in tables', () => {
     vi.mocked(trpc.stats.overallStats.useQuery).mockReturnValue({
       data: {
         totalAttempts: 50,
@@ -93,13 +94,22 @@ describe('StatsPage', () => {
             cardId: 'card-1',
             front: 'Capital of France?',
             deckId: 'deck-1',
+            deckName: 'Geography',
             avgAttemptsToCorrect: 3.0,
           },
           {
             cardId: 'card-2',
             front: 'What is 2+2?',
-            deckId: 'deck-1',
+            deckId: 'deck-2',
+            deckName: 'Math',
             avgAttemptsToCorrect: 2.0,
+          },
+          {
+            cardId: 'card-3',
+            front: 'Capital of Japan?',
+            deckId: 'deck-1',
+            deckName: 'Geography',
+            avgAttemptsToCorrect: 1.5,
           },
         ],
       },
@@ -110,10 +120,19 @@ describe('StatsPage', () => {
     renderStatsPage();
 
     expect(screen.getByText(/needs work/i)).toBeInTheDocument();
+    // Deck names appear as group headings
+    expect(screen.getByText('Geography')).toBeInTheDocument();
+    expect(screen.getByText('Math')).toBeInTheDocument();
+    // Card data in tables
     expect(screen.getByText('Capital of France?')).toBeInTheDocument();
     expect(screen.getByText('What is 2+2?')).toBeInTheDocument();
+    expect(screen.getByText('Capital of Japan?')).toBeInTheDocument();
     expect(screen.getByText('3.0')).toBeInTheDocument();
     expect(screen.getByText('2.0')).toBeInTheDocument();
+    expect(screen.getByText('1.5')).toBeInTheDocument();
+    // Table headers present
+    const questionHeaders = screen.getAllByText('Question');
+    expect(questionHeaders).toHaveLength(2); // one per deck group
   });
 
   it('does not render weak cards section when none exist', () => {

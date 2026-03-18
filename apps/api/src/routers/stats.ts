@@ -184,6 +184,7 @@ export const statsRouter = router({
           cardId: string;
           front: string;
           deckId: string;
+          deckName: string;
           avgAttemptsToCorrect: number;
         }[],
       };
@@ -214,7 +215,12 @@ export const statsRouter = router({
       weakCardIds.length > 0
         ? await ctx.prisma.card.findMany({
             where: { id: { in: weakCardIds } },
-            select: { id: true, front: true, deckId: true },
+            select: {
+              id: true,
+              front: true,
+              deckId: true,
+              deck: { select: { name: true } },
+            },
           })
         : [];
     const cardMap = new Map(cards.map((c) => [c.id, c]));
@@ -225,6 +231,7 @@ export const statsRouter = router({
         cardId: c.cardId,
         front: card?.front ?? '',
         deckId: card?.deckId ?? '',
+        deckName: card?.deck.name ?? '',
         avgAttemptsToCorrect: c.avgAttemptsToCorrect!,
       };
     });

@@ -328,10 +328,12 @@ describe('statsRouter', () => {
       expect(stats.weakCards[0].avgAttemptsToCorrect).toBe(3);
       expect(stats.weakCards[0].front).toBe('2+2');
       expect(stats.weakCards[0].deckId).toBe(deck2Id);
+      expect(stats.weakCards[0].deckName).toBe('Stats Deck 2');
       // deck1 card1 took 2 attempts
       expect(stats.weakCards[1].cardId).toBe(cardIds[1]);
       expect(stats.weakCards[1].avgAttemptsToCorrect).toBe(2);
       expect(stats.weakCards[1].front).toBe('Capital of Japan');
+      expect(stats.weakCards[1].deckName).toBe('Stats Deck 1');
     });
 
     it('handles no study data gracefully', async () => {
