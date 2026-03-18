@@ -146,8 +146,14 @@ export function useStudySession(
       studyState.reviewIndex === 0
     ) {
       setStudyState({ phase: 'reviewing', reviewIndex: -1, showingBack: true });
+    } else if (studyState.phase === 'complete' && history.length > 0) {
+      setStudyState({
+        phase: 'reviewing',
+        reviewIndex: history.length - 1,
+        showingBack: true,
+      });
     }
-  }, [studyState, history.length]);
+  }, [studyState, history]);
 
   const handleForward = useCallback(async () => {
     if (studyState.phase !== 'reviewing') return;
@@ -164,7 +170,8 @@ export function useStudySession(
       const currentCard = cardQueue.currentCard;
 
       if (!currentCard) {
-        // Queue exhausted — stay on last review entry
+        // Queue exhausted — return to complete screen
+        setStudyState({ phase: 'complete' });
         return;
       } else if (currentCard.id !== lastEntry?.card.id) {
         // We're on a new card that hasn't been answered yet
@@ -179,6 +186,7 @@ export function useStudySession(
   const canGoBack =
     studyState.phase === 'answering' ||
     studyState.phase === 'result' ||
+    studyState.phase === 'complete' ||
     (studyState.phase === 'reviewing' && studyState.reviewIndex >= 0);
 
   const reviewEntry =

@@ -169,6 +169,7 @@ export default function StudyPage() {
   );
 
   const forwardButtonRef = useRef<HTMLButtonElement>(null);
+  const backButtonRef = useRef<HTMLButtonElement>(null);
 
   // Focus the forward button when arriving at the title card mid-session
   useEffect(() => {
@@ -176,6 +177,20 @@ export default function StudyPage() {
       forwardButtonRef.current?.focus();
     }
   }, [isAtTitle, exitingCard]);
+
+  // Focus the appropriate nav button after slide animation completes
+  useEffect(() => {
+    if (
+      exitingCard ||
+      isAtTitle ||
+      studyState.phase === 'answering' ||
+      studyState.phase === 'complete'
+    )
+      return;
+    if (lastNavDirection === 'back') {
+      backButtonRef.current?.focus();
+    }
+  }, [exitingCard, lastNavDirection, isAtTitle, studyState.phase]);
 
   // Enter key starts session during idle phase (with slide)
   useEffect(() => {
@@ -273,6 +288,15 @@ export default function StudyPage() {
                 First-try accuracy: {formatPercent(firstTryAccuracy)}
               </p>
             </div>
+            <Button
+              onClick={slideToPrev}
+              variant="ghost"
+              size="icon"
+              aria-label="Previous"
+              className={`-left-20 ${navButtonClasses}`}
+            >
+              <ChevronLeft className="size-14" />
+            </Button>
           </div>
           <div className="mt-6">
             <button
@@ -409,6 +433,7 @@ export default function StudyPage() {
 
           {!isAtTitle && (
             <Button
+              ref={backButtonRef}
               onClick={slideToPrev}
               disabled={!canGoBack}
               variant="ghost"
