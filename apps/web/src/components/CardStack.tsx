@@ -40,10 +40,10 @@ export function CardStack({
       }
     >
       {queueLength > 2 && (
-        <div className="absolute inset-x-2 top-0 aspect-3/2 rounded-xl border border-white/30 bg-white/10 backdrop-blur-sm" />
+        <div className="absolute inset-x-2 top-0 aspect-3/2 rounded-xl border border-white/30" />
       )}
       {queueLength > 1 && (
-        <div className="absolute inset-x-1 top-1.5 aspect-3/2 rounded-xl border border-white/30 bg-white/15 backdrop-blur-sm" />
+        <div className="absolute inset-x-1 top-1.5 aspect-3/2 rounded-xl border border-white/30" />
       )}
       {hasFlip ? (
         <div
