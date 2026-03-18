@@ -208,7 +208,7 @@ describe('DeckListPage', () => {
     await user.type(screen.getByRole('textbox'), 'New Deck');
     await user.keyboard('{Enter}');
 
-    expect(mockNavigate).toHaveBeenCalledWith('/decks/new-deck-123');
+    expect(mockNavigate).toHaveBeenCalledWith('/decks/new-deck-123/cards');
   });
 
   it('does not submit create form with empty name', async () => {

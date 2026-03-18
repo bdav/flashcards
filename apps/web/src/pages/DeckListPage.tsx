@@ -23,7 +23,7 @@ export default function DeckListPage() {
   const createDeck = trpc.deck.create.useMutation({
     onSuccess: (data) => {
       utils.deck.list.invalidate();
-      navigate(`/decks/${data.id}`);
+      navigate(`/decks/${data.id}/cards`);
     },
     onError: () => {
       toast.error('Failed to create deck');
