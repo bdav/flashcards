@@ -227,9 +227,15 @@ export default function StudyPage() {
 
   if (cards.length === 0) {
     return (
-      <CenteredPage centered>
-        <h1 className="text-2xl font-bold text-white">{deck.name}</h1>
-        <p className="mt-4 text-white/60">This deck has no cards.</p>
+      <CenteredPage>
+        <DeckHeader
+          deckName={deck.name}
+          deckId={deckId ?? ''}
+          activeTab="study"
+        />
+        <p className="mt-6 text-center text-white/60">
+          This deck has no cards.
+        </p>
         <Link
           to={`/decks/${deckId}/cards`}
           className="mt-2 text-white/80 underline hover:text-white"

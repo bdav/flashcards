@@ -44,9 +44,13 @@ export default function DeckStatsPage() {
 
   if (!stats || stats.totalAttempts === 0) {
     return (
-      <CenteredPage centered>
-        <h1 className="text-2xl font-bold text-white">{deckName}</h1>
-        <p className="mt-2 text-white/60">
+      <CenteredPage>
+        <DeckHeader
+          deckName={deckName}
+          deckId={deckId ?? ''}
+          activeTab="stats"
+        />
+        <p className="mt-6 text-center text-white/60">
           No study data yet. Study this deck to see stats here.
         </p>
       </CenteredPage>
