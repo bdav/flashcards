@@ -441,6 +441,96 @@ describe('cardRouter', () => {
         caller.card.update({ cardId: deck.cards[0].id }),
       ).rejects.toThrow(/at least one/i);
     });
+
+    it('deletes card attempts when card is updated', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Test Deck',
+          userId,
+          cards: { create: [{ front: 'Q', back: 'Wrong A' }] },
+        },
+        include: { cards: true },
+      });
+
+      const session = await prisma.studySession.create({
+        data: { userId, deckId: deck.id },
+      });
+
+      await prisma.cardAttempt.create({
+        data: {
+          studySessionId: session.id,
+          cardId: deck.cards[0].id,
+          userAnswer: 'Wrong A',
+          result: 'correct',
+          attemptNumber: 1,
+        },
+      });
+
+      const caller = createCaller();
+      await caller.card.update({
+        cardId: deck.cards[0].id,
+        back: 'Correct A',
+      });
+
+      const attempts = await prisma.cardAttempt.findMany({
+        where: { cardId: deck.cards[0].id },
+      });
+      expect(attempts).toHaveLength(0);
+    });
+
+    it('does not delete attempts for other cards when one card is updated', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Test Deck',
+          userId,
+          cards: {
+            create: [
+              { front: 'Q1', back: 'A1' },
+              { front: 'Q2', back: 'A2' },
+            ],
+          },
+        },
+        include: { cards: true },
+      });
+
+      const session = await prisma.studySession.create({
+        data: { userId, deckId: deck.id },
+      });
+
+      await prisma.cardAttempt.createMany({
+        data: [
+          {
+            studySessionId: session.id,
+            cardId: deck.cards[0].id,
+            userAnswer: 'A1',
+            result: 'correct',
+            attemptNumber: 1,
+          },
+          {
+            studySessionId: session.id,
+            cardId: deck.cards[1].id,
+            userAnswer: 'A2',
+            result: 'correct',
+            attemptNumber: 1,
+          },
+        ],
+      });
+
+      const caller = createCaller();
+      await caller.card.update({
+        cardId: deck.cards[0].id,
+        back: 'New A1',
+      });
+
+      const card1Attempts = await prisma.cardAttempt.findMany({
+        where: { cardId: deck.cards[0].id },
+      });
+      const card2Attempts = await prisma.cardAttempt.findMany({
+        where: { cardId: deck.cards[1].id },
+      });
+      expect(card1Attempts).toHaveLength(0);
+      expect(card2Attempts).toHaveLength(1);
+    });
   });
 
   describe('delete', () => {
@@ -726,6 +816,61 @@ describe('cardRouter', () => {
 
       expect(result.createdCount).toBe(3);
       expect(result.updatedCount).toBe(2);
+    });
+
+    it('deletes card attempts for updated cards', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Import Deck',
+          userId,
+          cards: {
+            create: [
+              { front: 'Q1', back: 'Old A1' },
+              { front: 'Q2', back: 'A2' },
+            ],
+          },
+        },
+        include: { cards: true },
+      });
+
+      const session = await prisma.studySession.create({
+        data: { userId, deckId: deck.id },
+      });
+
+      await prisma.cardAttempt.createMany({
+        data: [
+          {
+            studySessionId: session.id,
+            cardId: deck.cards[0].id,
+            userAnswer: 'Old A1',
+            result: 'incorrect',
+            attemptNumber: 1,
+          },
+          {
+            studySessionId: session.id,
+            cardId: deck.cards[1].id,
+            userAnswer: 'A2',
+            result: 'correct',
+            attemptNumber: 1,
+          },
+        ],
+      });
+
+      const caller = createCaller();
+      await caller.card.importCards({
+        deckId: deck.id,
+        new: [],
+        update: [{ cardId: deck.cards[0].id, back: 'New A1' }],
+      });
+
+      const card1Attempts = await prisma.cardAttempt.findMany({
+        where: { cardId: deck.cards[0].id },
+      });
+      const card2Attempts = await prisma.cardAttempt.findMany({
+        where: { cardId: deck.cards[1].id },
+      });
+      expect(card1Attempts).toHaveLength(0);
+      expect(card2Attempts).toHaveLength(1);
     });
   });
 });

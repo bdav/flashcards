@@ -77,12 +77,18 @@ export const cardRouter = router({
         });
       }
 
-      return ctx.prisma.card.update({
-        where: { id: input.cardId },
-        data: {
-          ...(input.front !== undefined && { front: input.front }),
-          ...(input.back !== undefined && { back: input.back }),
-        },
+      return ctx.prisma.$transaction(async (tx) => {
+        await tx.cardAttempt.deleteMany({
+          where: { cardId: input.cardId },
+        });
+
+        return tx.card.update({
+          where: { id: input.cardId },
+          data: {
+            ...(input.front !== undefined && { front: input.front }),
+            ...(input.back !== undefined && { back: input.back }),
+          },
+        });
       });
     }),
 
@@ -191,7 +197,12 @@ export const cardRouter = router({
           });
         }
 
-        // Update existing cards
+        // Update existing cards and reset their attempts
+        if (input.update.length > 0) {
+          await tx.cardAttempt.deleteMany({
+            where: { cardId: { in: input.update.map((c) => c.cardId) } },
+          });
+        }
         for (const card of input.update) {
           await tx.card.update({
             where: { id: card.cardId },
