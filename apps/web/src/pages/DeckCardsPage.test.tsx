@@ -189,21 +189,24 @@ describe('DeckCardsPage', () => {
     expect(screen.getByText(/error/i)).toBeInTheDocument();
   });
 
-  it('shows New Card button that opens creation form', async () => {
-    setupMocks();
+  it('shows New Card button that opens creation form with front input', async () => {
+    setupMocks({ cards: [] });
     const user = userEvent.setup();
     renderDeckCardsPage();
 
     expect(screen.getByText('New Card')).toBeInTheDocument();
     await user.click(screen.getByText('New Card'));
 
-    expect(screen.getByRole('textbox', { name: /front/i })).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: /back/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^add$/i })).toBeInTheDocument();
+    // Both front and back faces are in the DOM (backface-visibility hides one)
+    const cancelButtons = screen.getAllByRole('button', { name: /cancel/i });
+    expect(cancelButtons.length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByRole('button', { name: /flip to back/i })[0],
+    ).toBeInTheDocument();
   });
 
-  it('calls create mutation when new card form is submitted', async () => {
-    setupMocks();
+  it('calls create mutation after entering front, flipping, and entering back', async () => {
+    setupMocks({ cards: [] });
     const mockMutate = vi.fn();
     vi.mocked(trpc.card.create.useMutation).mockReturnValue({
       mutate: mockMutate,
@@ -217,12 +220,16 @@ describe('DeckCardsPage', () => {
     renderDeckCardsPage();
 
     await user.click(screen.getByText('New Card'));
+    // Type front text and press Enter to flip
     await user.type(
       screen.getByRole('textbox', { name: /front/i }),
       'Capital of Spain',
     );
+    await user.keyboard('{Enter}');
+
+    // Type back text and press Enter to submit
     await user.type(screen.getByRole('textbox', { name: /back/i }), 'Madrid');
-    await user.click(screen.getByRole('button', { name: /^add$/i }));
+    await user.keyboard('{Enter}');
 
     expect(mockMutate).toHaveBeenCalledWith({
       deckId: 'deck-1',
@@ -231,24 +238,19 @@ describe('DeckCardsPage', () => {
     });
   });
 
-  it('does not submit new card form with empty fields', async () => {
-    setupMocks();
-    const mockMutate = vi.fn();
-    vi.mocked(trpc.card.create.useMutation).mockReturnValue({
-      mutate: mockMutate,
-      mutateAsync: vi.fn(),
-      isPending: false,
-      isError: false,
-      error: null,
-    } as unknown as ReturnType<typeof trpc.card.create.useMutation>);
-
+  it('does not flip to back when front is empty', async () => {
+    setupMocks({ cards: [] });
     const user = userEvent.setup();
     renderDeckCardsPage();
 
     await user.click(screen.getByText('New Card'));
-    await user.click(screen.getByRole('button', { name: /^add$/i }));
+    // Press Enter with empty front — should not flip
+    await user.keyboard('{Enter}');
 
-    expect(mockMutate).not.toHaveBeenCalled();
+    // Flip button should still be disabled
+    expect(
+      screen.getAllByRole('button', { name: /flip to back/i })[0],
+    ).toBeDisabled();
   });
 
   it('shows Import CSV tile that opens form with instructions', async () => {
@@ -259,8 +261,7 @@ describe('DeckCardsPage', () => {
     expect(screen.getByText('Import CSV')).toBeInTheDocument();
     await user.click(screen.getByText('Import CSV'));
 
-    expect(screen.getByText(/front/)).toBeInTheDocument();
-    expect(screen.getByText(/back/)).toBeInTheDocument();
+    expect(screen.getByText(/CSV must have/i)).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /choose file/i }),
     ).toBeInTheDocument();

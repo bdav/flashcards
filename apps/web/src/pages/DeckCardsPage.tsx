@@ -1,7 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Pencil, Plus, Trash2, Upload } from 'lucide-react';
+import {
+  CornerDownLeft,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -94,12 +103,33 @@ export default function DeckCardsPage() {
   const utils = trpc.useUtils();
 
   const [isCreating, setIsCreating] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [hasVisitedBack, setHasVisitedBack] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [newFront, setNewFront] = useState('');
   const [newBack, setNewBack] = useState('');
   const [csvError, setCsvError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const newCardButtonRef = useRef<HTMLDivElement | null>(null);
+  const frontInputRef = useRef<HTMLInputElement>(null);
+  const backInputRef = useRef<HTMLInputElement>(null);
+
+  const FLIP_DURATION_MS = 500;
+
+  function flipToBack() {
+    setIsFlipped(true);
+    setHasVisitedBack(true);
+    requestAnimationFrame(() =>
+      setTimeout(() => backInputRef.current?.focus(), FLIP_DURATION_MS),
+    );
+  }
+
+  function flipToFront() {
+    setIsFlipped(false);
+    requestAnimationFrame(() =>
+      setTimeout(() => frontInputRef.current?.focus(), FLIP_DURATION_MS),
+    );
+  }
 
   const deckQuery = trpc.deck.getById.useQuery(
     { id: deckId! },
@@ -118,6 +148,8 @@ export default function DeckCardsPage() {
     onSuccess: () => {
       invalidateCards();
       setIsCreating(false);
+      setIsFlipped(false);
+      setHasVisitedBack(false);
       setNewFront('');
       setNewBack('');
       toast.success('Card added');
@@ -127,6 +159,14 @@ export default function DeckCardsPage() {
       toast.error('Failed to add card');
     },
   });
+
+  function cancelCreate() {
+    setIsCreating(false);
+    setIsFlipped(false);
+    setHasVisitedBack(false);
+    setNewFront('');
+    setNewBack('');
+  }
 
   const updateCard = trpc.card.update.useMutation({
     onSuccess: () => {
@@ -247,171 +287,287 @@ export default function DeckCardsPage() {
         </div>
 
         {/* Card Grid */}
-        <div className="mt-2 grid grid-cols-2 gap-6 sm:grid-cols-3">
-          {/* New Card button / form */}
-          {isCreating ? (
-            <DeckCard stackCount={0}>
-              <form
-                className="flex w-full flex-col items-center gap-4 px-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!newFront.trim() || !newBack.trim()) return;
-                  createCard.mutate({
-                    deckId,
-                    front: newFront.trim(),
-                    back: newBack.trim(),
-                  });
-                }}
-              >
-                <label className="w-full">
-                  <span className="mb-1 block text-xs text-white/50">
-                    Front
-                  </span>
-                  <textarea
-                    value={newFront}
-                    onChange={(e) => setNewFront(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        e.currentTarget.form?.requestSubmit();
-                      }
-                    }}
+        <LayoutGroup>
+          <div className="mt-2 grid grid-cols-2 gap-6 sm:grid-cols-3">
+            {/* New Card button / form */}
+            <AnimatePresence mode="popLayout" initial={false}>
+              {isCreating ? (
+                <motion.div
+                  key="create-form"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                  style={{ perspective: '600px' }}
+                >
+                  <div className="relative w-full rounded-b-xl rounded-t-3xl pt-3">
+                    <div
+                      className="relative w-full transition-transform duration-500"
+                      style={{
+                        transformStyle: 'preserve-3d',
+                        transform: isFlipped
+                          ? 'rotateY(-180deg)'
+                          : 'rotateY(0deg)',
+                      }}
+                    >
+                      {/* Front face — enter "front" text */}
+                      <div
+                        className="relative flex aspect-3/2 w-full flex-col items-center justify-center rounded-xl border border-white/30 bg-white/10 p-4 backdrop-blur-sm"
+                        style={{ backfaceVisibility: 'hidden' }}
+                      >
+                        <button
+                          type="button"
+                          aria-label="Cancel"
+                          className="absolute left-2 top-2 z-10 text-white/40 hover:text-white/70 transition-colors"
+                          onClick={cancelCreate}
+                        >
+                          <X className="size-4" />
+                        </button>
+                        {hasVisitedBack && (
+                          <button
+                            type="button"
+                            aria-label="Flip to back"
+                            className="absolute right-2 top-2 z-10 text-white/40 hover:text-white/70 transition-colors"
+                            onClick={flipToBack}
+                          >
+                            <RefreshCw className="size-4" />
+                          </button>
+                        )}
+                        <span className="text-xs text-white/50">Front</span>
+                        <div className="relative w-full">
+                          <input
+                            ref={frontInputRef}
+                            type="text"
+                            aria-label="Front"
+                            value={newFront}
+                            onChange={(e) => setNewFront(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') {
+                                cancelCreate();
+                              } else if (e.key === 'Enter' && newFront.trim()) {
+                                flipToBack();
+                              }
+                            }}
+                            autoFocus
+                            className="w-full border-0 border-b-2 border-white/40 bg-transparent py-2 text-center text-lg font-bold uppercase tracking-wide text-white outline-none focus:border-white/60"
+                          />
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            aria-label="Flip to back"
+                            disabled={!newFront.trim()}
+                            onClick={() => {
+                              if (newFront.trim()) flipToBack();
+                            }}
+                            className={`absolute right-0 top-1/2 -translate-y-1/2 text-white/50 disabled:opacity-40 ${newFront.trim() ? 'animate-pulse-halo' : ''}`}
+                          >
+                            <CornerDownLeft className="size-5" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Back face — enter "back" text */}
+                      <div
+                        className="absolute inset-0 flex aspect-3/2 w-full flex-col items-center justify-center rounded-xl border border-white/30 bg-white/15 p-4 backdrop-blur-sm"
+                        style={{
+                          backfaceVisibility: 'hidden',
+                          transform: 'rotateY(-180deg)',
+                        }}
+                      >
+                        <button
+                          type="button"
+                          aria-label="Cancel"
+                          className="absolute left-2 top-2 z-10 text-white/40 hover:text-white/70 transition-colors"
+                          onClick={cancelCreate}
+                        >
+                          <X className="size-4" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Flip to front"
+                          className="absolute right-2 top-2 z-10 text-white/40 hover:text-white/70 transition-colors"
+                          onClick={flipToFront}
+                        >
+                          <RefreshCw className="size-4" />
+                        </button>
+                        <span className="text-xs text-white/50">Back</span>
+                        <form
+                          className="relative w-full"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            if (!newFront.trim() || !newBack.trim()) return;
+                            createCard.mutate({
+                              deckId,
+                              front: newFront.trim(),
+                              back: newBack.trim(),
+                            });
+                          }}
+                        >
+                          <input
+                            ref={backInputRef}
+                            type="text"
+                            aria-label="Back"
+                            value={newBack}
+                            onChange={(e) => setNewBack(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') {
+                                cancelCreate();
+                              }
+                            }}
+                            className="w-full border-0 border-b-2 border-white/40 bg-transparent py-2 text-center text-lg font-bold uppercase tracking-wide text-white outline-none focus:border-white/60"
+                          />
+                          <Button
+                            type="submit"
+                            size="icon"
+                            variant="ghost"
+                            aria-label="Create card"
+                            disabled={
+                              createCard.isPending ||
+                              !newFront.trim() ||
+                              !newBack.trim()
+                            }
+                            className={`absolute right-0 top-1/2 -translate-y-1/2 text-white/50 disabled:opacity-40 ${newBack.trim() ? 'animate-pulse-halo' : ''}`}
+                          >
+                            <CornerDownLeft className="size-5" />
+                          </Button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="new-card-button"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <DeckCard
+                    ref={newCardButtonRef}
+                    stackCount={0}
                     autoFocus
-                    rows={2}
-                    className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  />
-                </label>
-                <label className="w-full">
-                  <span className="mb-1 block text-xs text-white/50">Back</span>
-                  <textarea
-                    value={newBack}
-                    onChange={(e) => setNewBack(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        e.currentTarget.form?.requestSubmit();
-                      }
-                    }}
-                    rows={2}
-                    className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  />
-                </label>
-                <div className="flex w-full justify-end gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setIsCreating(false);
-                      setNewFront('');
-                      setNewBack('');
-                    }}
+                    className="group/new cursor-pointer transition-shadow hover:shadow-lg focus:outline-none"
+                    onClick={() => setIsCreating(true)}
                   >
-                    Cancel
-                  </Button>
-                  <button
-                    type="submit"
-                    disabled={
-                      createCard.isPending ||
-                      !newFront.trim() ||
-                      !newBack.trim()
-                    }
-                    className={`rounded-md px-3 py-1 text-sm font-semibold text-white focus:outline-none disabled:opacity-40 ${newFront.trim() && newBack.trim() ? 'animate-pulse-halo' : ''}`}
-                  >
-                    Add
-                  </button>
-                </div>
-              </form>
-            </DeckCard>
-          ) : (
-            <DeckCard
-              ref={newCardButtonRef}
-              stackCount={0}
-              autoFocus
-              className="group/new cursor-pointer transition-shadow hover:shadow-lg focus:outline-none"
-              onClick={() => setIsCreating(true)}
-            >
-              <Plus className="h-10 w-10 text-white/60 group-focus/new:animate-pulse-halo" />
-              <p className="mt-2 text-sm font-medium text-white/60 group-focus/new:animate-pulse-halo">
-                New Card
-              </p>
-            </DeckCard>
-          )}
+                    <Plus className="h-10 w-10 text-white/60 group-focus/new:animate-pulse-halo" />
+                    <p className="mt-2 text-sm font-medium text-white/60 group-focus/new:animate-pulse-halo">
+                      New Card
+                    </p>
+                  </DeckCard>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          {/* Import CSV tile */}
-          {isImporting ? (
-            <DeckCard stackCount={0}>
-              <div className="flex w-full flex-col items-center gap-2 px-2">
-                <p className="text-xs text-white/60">
-                  CSV must have <code className="text-white/80">front</code> and{' '}
-                  <code className="text-white/80">back</code> columns.
-                </p>
-                <Button
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={importCsv.isPending}
+            {/* Import CSV tile */}
+            <AnimatePresence mode="popLayout" initial={false}>
+              {isImporting ? (
+                <motion.div
+                  key="import-form"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Choose File
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".csv"
-                  data-testid="csv-file-input"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      setCsvError(null);
-                      handleCsvUpload(file);
-                    }
-                  }}
+                  <DeckCard stackCount={0}>
+                    <button
+                      type="button"
+                      aria-label="Cancel import"
+                      className="absolute left-2 top-2 z-10 text-white/40 hover:text-white/70 transition-colors"
+                      onClick={() => {
+                        setIsImporting(false);
+                        setCsvError(null);
+                      }}
+                    >
+                      <X className="size-4" />
+                    </button>
+                    <div className="flex w-full flex-col items-center gap-2 px-2">
+                      <p className="text-xs text-white/60">
+                        CSV must have{' '}
+                        <code className="text-white/80">front</code> and{' '}
+                        <code className="text-white/80">back</code> columns.
+                      </p>
+                      <Button
+                        size="sm"
+                        autoFocus
+                        onClick={() => fileInputRef.current?.click()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') {
+                            setIsImporting(false);
+                            setCsvError(null);
+                          }
+                        }}
+                        disabled={importCsv.isPending}
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        Choose File
+                      </Button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".csv"
+                        data-testid="csv-file-input"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setCsvError(null);
+                            handleCsvUpload(file);
+                          }
+                        }}
+                      />
+                      {csvError && (
+                        <p className="text-xs text-destructive">{csvError}</p>
+                      )}
+                    </div>
+                  </DeckCard>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="import-button"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <DeckCard
+                    stackCount={0}
+                    className="cursor-pointer transition-shadow hover:shadow-lg"
+                    onClick={() => setIsImporting(true)}
+                  >
+                    <Upload className="h-10 w-10 text-white/60" />
+                    <p className="mt-2 text-sm font-medium text-white/60">
+                      Import CSV
+                    </p>
+                  </DeckCard>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Existing cards */}
+            {cards.map((card) => (
+              <motion.div
+                key={card.id}
+                layout="position"
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+              >
+                <FlashCardTile
+                  front={card.front}
+                  back={card.back}
+                  onSave={(front, back) =>
+                    updateCard.mutate({ cardId: card.id, front, back })
+                  }
+                  onDelete={() => deleteCard.mutate({ cardId: card.id })}
+                  isSaving={
+                    updateCard.isPending &&
+                    updateCard.variables?.cardId === card.id
+                  }
                 />
-                {csvError && (
-                  <p className="text-xs text-destructive">{csvError}</p>
-                )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setIsImporting(false);
-                    setCsvError(null);
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </DeckCard>
-          ) : (
-            <DeckCard
-              stackCount={0}
-              className="cursor-pointer transition-shadow hover:shadow-lg"
-              onClick={() => setIsImporting(true)}
-            >
-              <Upload className="h-10 w-10 text-white/60" />
-              <p className="mt-2 text-sm font-medium text-white/60">
-                Import CSV
-              </p>
-            </DeckCard>
-          )}
-
-          {/* Existing cards */}
-          {cards.map((card) => (
-            <FlashCardTile
-              key={card.id}
-              front={card.front}
-              back={card.back}
-              onSave={(front, back) =>
-                updateCard.mutate({ cardId: card.id, front, back })
-              }
-              onDelete={() => deleteCard.mutate({ cardId: card.id })}
-              isSaving={
-                updateCard.isPending && updateCard.variables?.cardId === card.id
-              }
-            />
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </div>
+        </LayoutGroup>
       </div>
     </CenteredPage>
   );
