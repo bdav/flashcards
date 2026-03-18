@@ -456,7 +456,6 @@ describe('DeckCardsPage', () => {
       ...defaultMutationReturn,
       mutate: mockMutate,
     } as unknown as ReturnType<typeof trpc.card.delete.useMutation>);
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     const user = userEvent.setup();
     renderDeckCardsPage();
@@ -464,7 +463,11 @@ describe('DeckCardsPage', () => {
     const deleteButtons = screen.getAllByTitle('Delete card');
     await user.click(deleteButtons[0]);
 
-    expect(window.confirm).toHaveBeenCalled();
+    const confirmButton = await screen.findByRole('button', {
+      name: /^delete$/i,
+    });
+    await user.click(confirmButton);
+
     expect(mockMutate).toHaveBeenCalledWith({ cardId: 'card-1' });
   });
 
@@ -475,7 +478,6 @@ describe('DeckCardsPage', () => {
       ...defaultMutationReturn,
       mutate: mockMutate,
     } as unknown as ReturnType<typeof trpc.card.delete.useMutation>);
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
 
     const user = userEvent.setup();
     renderDeckCardsPage();
@@ -483,7 +485,9 @@ describe('DeckCardsPage', () => {
     const deleteButtons = screen.getAllByTitle('Delete card');
     await user.click(deleteButtons[0]);
 
-    expect(window.confirm).toHaveBeenCalled();
+    const cancelButton = await screen.findByRole('button', { name: /cancel/i });
+    await user.click(cancelButton);
+
     expect(mockMutate).not.toHaveBeenCalled();
   });
 
@@ -501,16 +505,17 @@ describe('DeckCardsPage', () => {
         } as unknown as ReturnType<typeof trpc.deck.delete.useMutation>;
       },
     );
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     const user = userEvent.setup();
     renderDeckCardsPage();
 
     await user.click(screen.getByRole('button', { name: /delete deck/i }));
 
-    expect(window.confirm).toHaveBeenCalledWith(
-      expect.stringContaining('delete'),
-    );
+    const confirmButton = await screen.findByRole('button', {
+      name: /^delete$/i,
+    });
+    await user.click(confirmButton);
+
     expect(mockMutate).toHaveBeenCalledWith({ id: 'deck-1' });
     expect(mockNavigate).toHaveBeenCalledWith('/');
   });
@@ -522,12 +527,14 @@ describe('DeckCardsPage', () => {
       ...defaultMutationReturn,
       mutate: mockMutate,
     } as unknown as ReturnType<typeof trpc.deck.delete.useMutation>);
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
 
     const user = userEvent.setup();
     renderDeckCardsPage();
 
     await user.click(screen.getByRole('button', { name: /delete deck/i }));
+
+    const cancelButton = await screen.findByRole('button', { name: /cancel/i });
+    await user.click(cancelButton);
 
     expect(mockMutate).not.toHaveBeenCalled();
   });

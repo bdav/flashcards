@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { RefreshCw, Undo2, Trash2 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 interface FlashCardTileProps {
   front: string;
@@ -125,16 +126,21 @@ export function FlashCardTile({
             />
           </div>
           <div className="flex justify-end px-3 pb-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              className="rounded p-1 text-white/0 transition-colors group-hover:text-white/30 group-hover:hover:text-red-400"
+            <ConfirmDialog
               title="Delete card"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+              description="Are you sure you want to delete this card? This cannot be undone."
+              confirmLabel="Delete"
+              onConfirm={onDelete}
+              trigger={
+                <button
+                  onClick={(e) => e.stopPropagation()}
+                  className="rounded p-1 text-white/0 transition-colors group-hover:text-white/30 group-hover:hover:text-red-400"
+                  title="Delete card"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              }
+            />
           </div>
         </div>
 
@@ -182,16 +188,21 @@ export function FlashCardTile({
             />
           </div>
           <div className="flex justify-end px-3 pb-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              className="rounded p-1 text-white/0 transition-colors group-hover:text-white/30 group-hover:hover:text-red-400"
+            <ConfirmDialog
               title="Delete card"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+              description="Are you sure you want to delete this card? This cannot be undone."
+              confirmLabel="Delete"
+              onConfirm={onDelete}
+              trigger={
+                <button
+                  onClick={(e) => e.stopPropagation()}
+                  className="rounded p-1 text-white/0 transition-colors group-hover:text-white/30 group-hover:hover:text-red-400"
+                  title="Delete card"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              }
+            />
           </div>
         </div>
       </div>

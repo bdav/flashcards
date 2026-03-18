@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Pencil, Plus, Trash2, Upload } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { CenteredPage } from '@/components/CenteredPage';
 import { DeckTabs } from '@/components/DeckTabs';
 import { DeckCardsSkeleton } from '@/components/PageSkeleton';
@@ -98,6 +99,7 @@ export default function DeckCardsPage() {
   const [newBack, setNewBack] = useState('');
   const [csvError, setCsvError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const newCardButtonRef = useRef<HTMLDivElement | null>(null);
 
   const deckQuery = trpc.deck.getById.useQuery(
     { id: deckId! },
@@ -119,6 +121,7 @@ export default function DeckCardsPage() {
       setNewFront('');
       setNewBack('');
       toast.success('Card added');
+      requestAnimationFrame(() => newCardButtonRef.current?.focus());
     },
     onError: () => {
       toast.error('Failed to add card');
@@ -226,22 +229,21 @@ export default function DeckCardsPage() {
         </p>
 
         <div className="flex justify-end mr-4">
-          <button
-            className="inline-flex items-center text-sm text-white/40 hover:text-destructive transition-colors"
+          <ConfirmDialog
             title="Delete deck"
-            onClick={() => {
-              if (
-                window.confirm(
-                  `Are you sure you want to delete "${deck?.name}"? This cannot be undone.`,
-                )
-              ) {
-                deleteDeck.mutate({ id: deckId });
-              }
-            }}
-          >
-            <Trash2 className="h-4 w-4 mr-1" />
-            Delete Deck
-          </button>
+            description={`Are you sure you want to delete "${deck.name}"? This cannot be undone.`}
+            confirmLabel="Delete"
+            onConfirm={() => deleteDeck.mutate({ id: deckId })}
+            trigger={
+              <button
+                className="inline-flex items-center text-sm text-white/40 hover:text-destructive transition-colors"
+                title="Delete deck"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete Deck
+              </button>
+            }
+          />
         </div>
 
         {/* Card Grid */}
@@ -323,12 +325,16 @@ export default function DeckCardsPage() {
             </DeckCard>
           ) : (
             <DeckCard
+              ref={newCardButtonRef}
               stackCount={0}
-              className="cursor-pointer transition-shadow hover:shadow-lg"
+              autoFocus
+              className="group/new cursor-pointer transition-shadow hover:shadow-lg focus:outline-none"
               onClick={() => setIsCreating(true)}
             >
-              <Plus className="h-10 w-10 text-white/60" />
-              <p className="mt-2 text-sm font-medium text-white/60">New Card</p>
+              <Plus className="h-10 w-10 text-white/60 group-focus/new:animate-pulse-halo" />
+              <p className="mt-2 text-sm font-medium text-white/60 group-focus/new:animate-pulse-halo">
+                New Card
+              </p>
             </DeckCard>
           )}
 
@@ -399,11 +405,7 @@ export default function DeckCardsPage() {
               onSave={(front, back) =>
                 updateCard.mutate({ cardId: card.id, front, back })
               }
-              onDelete={() => {
-                if (window.confirm('Delete this card?')) {
-                  deleteCard.mutate({ cardId: card.id });
-                }
-              }}
+              onDelete={() => deleteCard.mutate({ cardId: card.id })}
               isSaving={
                 updateCard.isPending && updateCard.variables?.cardId === card.id
               }
