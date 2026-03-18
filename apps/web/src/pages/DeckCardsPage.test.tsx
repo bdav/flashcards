@@ -1,6 +1,5 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { toast } from 'sonner';
 import { vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -39,7 +38,7 @@ vi.mock('@/lib/trpc', () => ({
       create: { useMutation: vi.fn() },
       update: { useMutation: vi.fn() },
       delete: { useMutation: vi.fn() },
-      importCsv: { useMutation: vi.fn() },
+      importCards: { useMutation: vi.fn() },
     },
   },
 }));
@@ -115,9 +114,9 @@ function setupMocks(overrides?: {
     error: null,
   } as unknown as ReturnType<typeof trpc.card.create.useMutation>);
 
-  vi.mocked(trpc.card.importCsv.useMutation).mockReturnValue({
+  vi.mocked(trpc.card.importCards.useMutation).mockReturnValue({
     ...defaultMutationReturn,
-  } as unknown as ReturnType<typeof trpc.card.importCsv.useMutation>);
+  } as unknown as ReturnType<typeof trpc.card.importCards.useMutation>);
 
   vi.mocked(trpc.card.update.useMutation).mockReturnValue({
     ...defaultMutationReturn,
@@ -267,19 +266,8 @@ describe('DeckCardsPage', () => {
     ).toBeInTheDocument();
   });
 
-  it('calls importCsv mutation when CSV file is uploaded', async () => {
+  it('opens preview dialog when CSV file is uploaded', async () => {
     setupMocks();
-    const mockMutate = vi.fn();
-    vi.mocked(trpc.card.importCsv.useMutation).mockImplementation(() => {
-      return {
-        mutate: mockMutate,
-        mutateAsync: vi.fn(),
-        isPending: false,
-        isError: false,
-        error: null,
-      } as unknown as ReturnType<typeof trpc.card.importCsv.useMutation>;
-    });
-
     const user = userEvent.setup();
     renderDeckCardsPage();
 
@@ -292,66 +280,51 @@ describe('DeckCardsPage', () => {
     await user.upload(fileInput, file);
 
     await vi.waitFor(() => {
-      expect(mockMutate).toHaveBeenCalledWith({
-        deckId: 'deck-1',
-        csvContent,
-      });
+      expect(screen.getByText('Import Preview')).toBeInTheDocument();
     });
+
+    // New card should appear in preview
+    expect(screen.getByDisplayValue('Capital of Spain')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Madrid')).toBeInTheDocument();
   });
 
-  it('shows success toast after CSV import', async () => {
+  it('calls importCards mutation when Import button is clicked in preview', async () => {
     setupMocks();
-    let onSuccessCallback:
-      | ((data: { importedCount: number }) => void)
-      | undefined;
-    vi.mocked(trpc.card.importCsv.useMutation).mockImplementation(
-      (opts?: { onSuccess?: (data: { importedCount: number }) => void }) => {
-        onSuccessCallback = opts?.onSuccess;
-        return {
-          mutate: vi.fn(() => {
-            onSuccessCallback?.({ importedCount: 3 });
-          }),
-          mutateAsync: vi.fn(),
-          isPending: false,
-          isError: false,
-          error: null,
-        } as unknown as ReturnType<typeof trpc.card.importCsv.useMutation>;
-      },
-    );
+    const mockMutate = vi.fn();
+    vi.mocked(trpc.card.importCards.useMutation).mockImplementation(() => {
+      return {
+        mutate: mockMutate,
+        mutateAsync: vi.fn(),
+        isPending: false,
+        isError: false,
+        error: null,
+      } as unknown as ReturnType<typeof trpc.card.importCards.useMutation>;
+    });
 
     const user = userEvent.setup();
     renderDeckCardsPage();
 
     await user.click(screen.getByText('Import CSV'));
 
-    const file = new File(['front,back\na,b\n'], 'cards.csv', {
-      type: 'text/csv',
-    });
+    const csvContent = 'front,back\nCapital of Spain,Madrid\n';
+    const file = new File([csvContent], 'cards.csv', { type: 'text/csv' });
     await user.upload(screen.getByTestId('csv-file-input'), file);
 
     await vi.waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith('Imported 3 cards');
+      expect(screen.getByText('Import Preview')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /^import$/i }));
+
+    expect(mockMutate).toHaveBeenCalledWith({
+      deckId: 'deck-1',
+      new: [{ front: 'Capital of Spain', back: 'Madrid' }],
+      update: [],
     });
   });
 
-  it('shows validation error for bad CSV input', async () => {
+  it('shows header validation error inline for bad CSV', async () => {
     setupMocks();
-    vi.mocked(trpc.card.importCsv.useMutation).mockImplementation(
-      (opts?: { onError?: (err: { message: string }) => void }) => {
-        return {
-          mutate: vi.fn(() => {
-            opts?.onError?.({
-              message: 'CSV must have "front" and "back" headers',
-            });
-          }),
-          mutateAsync: vi.fn(),
-          isPending: false,
-          isError: false,
-          error: null,
-        } as unknown as ReturnType<typeof trpc.card.importCsv.useMutation>;
-      },
-    );
-
     const user = userEvent.setup();
     renderDeckCardsPage();
 
@@ -364,9 +337,43 @@ describe('DeckCardsPage', () => {
 
     await vi.waitFor(() => {
       expect(
-        screen.getByText('CSV must have "front" and "back" headers'),
+        screen.getByText(/must have "front" and "back" headers/i),
       ).toBeInTheDocument();
     });
+
+    // Preview dialog should NOT open
+    expect(screen.queryByText('Import Preview')).not.toBeInTheDocument();
+  });
+
+  it('closes preview dialog on Cancel without importing', async () => {
+    setupMocks();
+    const mockMutate = vi.fn();
+    vi.mocked(trpc.card.importCards.useMutation).mockReturnValue({
+      ...defaultMutationReturn,
+      mutate: mockMutate,
+    } as unknown as ReturnType<typeof trpc.card.importCards.useMutation>);
+
+    const user = userEvent.setup();
+    renderDeckCardsPage();
+
+    await user.click(screen.getByText('Import CSV'));
+
+    const file = new File(['front,back\nNew Q,New A\n'], 'cards.csv', {
+      type: 'text/csv',
+    });
+    await user.upload(screen.getByTestId('csv-file-input'), file);
+
+    await vi.waitFor(() => {
+      expect(screen.getByText('Import Preview')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /cancel/i }));
+
+    await vi.waitFor(() => {
+      expect(screen.queryByText('Import Preview')).not.toBeInTheDocument();
+    });
+
+    expect(mockMutate).not.toHaveBeenCalled();
   });
 
   it('renders deck title and Cards tab active', () => {

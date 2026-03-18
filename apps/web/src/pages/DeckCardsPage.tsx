@@ -12,8 +12,12 @@ import {
   X,
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { parseCsv } from '@/lib/csvParser';
+import { diffCsvRows } from '@/lib/csvDiff';
+import type { NewCard, UpdateCard, SkippedRow } from '@/lib/csvDiff';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ImportPreviewDialog } from '@/components/ImportPreviewDialog';
 import { CenteredPage } from '@/components/CenteredPage';
 import { DeckTabs } from '@/components/DeckTabs';
 import { DeckCardsSkeleton } from '@/components/PageSkeleton';
@@ -109,6 +113,14 @@ export default function DeckCardsPage() {
   const [newFront, setNewFront] = useState('');
   const [newBack, setNewBack] = useState('');
   const [csvError, setCsvError] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewNewCards, setPreviewNewCards] = useState<NewCard[]>([]);
+  const [previewUpdateCards, setPreviewUpdateCards] = useState<UpdateCard[]>(
+    [],
+  );
+  const [previewSkippedRows, setPreviewSkippedRows] = useState<SkippedRow[]>(
+    [],
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const newCardButtonRef = useRef<HTMLDivElement | null>(null);
   const frontInputRef = useRef<HTMLInputElement>(null);
@@ -197,23 +209,22 @@ export default function DeckCardsPage() {
     },
   });
 
-  const importCsv = trpc.card.importCsv.useMutation({
+  const importCards = trpc.card.importCards.useMutation({
     onSuccess: (data) => {
       invalidateCards();
-      setCsvError(null);
+      setPreviewOpen(false);
       setIsImporting(false);
-      const updated = data.updatedCount ?? 0;
-      const parts = [`Imported ${data.importedCount} cards`];
-      if (updated > 0) {
-        parts.push(`${updated} updated`);
-      }
-      toast.success(parts.join(', '));
+      setCsvError(null);
+      const parts: string[] = [];
+      if (data.createdCount > 0) parts.push(`${data.createdCount} created`);
+      if (data.updatedCount > 0) parts.push(`${data.updatedCount} updated`);
+      toast.success(`Import complete: ${parts.join(', ')}`);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     },
     onError: (err) => {
-      setCsvError(err.message);
+      toast.error(err.message);
     },
   });
 
@@ -244,9 +255,32 @@ export default function DeckCardsPage() {
     const reader = new FileReader();
     reader.onload = (e) => {
       const csvContent = e.target?.result as string;
-      importCsv.mutate({ deckId: deckId!, csvContent });
+      const parseResult = parseCsv(csvContent);
+
+      if (parseResult.headerError) {
+        setCsvError(parseResult.headerError);
+        return;
+      }
+
+      const diff = diffCsvRows(
+        parseResult.validRows,
+        cards,
+        parseResult.errorRows,
+      );
+      setPreviewNewCards(diff.newCards);
+      setPreviewUpdateCards(diff.updateCards);
+      setPreviewSkippedRows(diff.skippedRows);
+      setPreviewOpen(true);
+      setCsvError(null);
     };
     reader.readAsText(file);
+  }
+
+  function closePreview() {
+    setPreviewOpen(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   }
 
   return (
@@ -498,7 +532,7 @@ export default function DeckCardsPage() {
                             setCsvError(null);
                           }
                         }}
-                        disabled={importCsv.isPending}
+                        disabled={importCards.isPending}
                       >
                         <Upload className="mr-2 h-4 w-4" />
                         Choose File
@@ -569,6 +603,18 @@ export default function DeckCardsPage() {
           </div>
         </LayoutGroup>
       </div>
+
+      {previewOpen && (
+        <ImportPreviewDialog
+          open={previewOpen}
+          onClose={closePreview}
+          onImport={(data) => importCards.mutate({ deckId: deckId!, ...data })}
+          isPending={importCards.isPending}
+          initialNewCards={previewNewCards}
+          initialUpdateCards={previewUpdateCards}
+          skippedRows={previewSkippedRows}
+        />
+      )}
     </CenteredPage>
   );
 }

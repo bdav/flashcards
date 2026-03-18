@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { protectedProcedure, router } from './trpc.js';
-import { parseCsv } from '../services/csvParser.js';
 
 export const cardRouter = router({
   create: protectedProcedure
@@ -129,11 +128,22 @@ export const cardRouter = router({
       });
     }),
 
-  importCsv: protectedProcedure
+  importCards: protectedProcedure
     .input(
       z.object({
         deckId: z.string(),
-        csvContent: z.string(),
+        new: z.array(
+          z.object({
+            front: z.string().trim().min(1),
+            back: z.string().trim().min(1),
+          }),
+        ),
+        update: z.array(
+          z.object({
+            cardId: z.string(),
+            back: z.string().trim().min(1),
+          }),
+        ),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -148,52 +158,23 @@ export const cardRouter = router({
         });
       }
 
-      const result = parseCsv(input.csvContent);
-
-      if (!result.ok) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: result.error,
+      // Validate that all update cards belong to this deck
+      for (const card of input.update) {
+        const existing = await ctx.prisma.card.findUnique({
+          where: { id: card.cardId },
         });
-      }
-
-      // Dedupe within CSV on front (last occurrence wins)
-      const csvByFront = new Map<string, { front: string; back: string }>();
-      for (const card of result.cards) {
-        csvByFront.set(card.front.toLowerCase(), card);
-      }
-      const uniqueCsvCards = [...csvByFront.values()];
-
-      // Compare against existing cards in deck (case-insensitive on front).
-      // Done in JS because SQLite doesn't support Prisma's `mode: 'insensitive'`.
-      const existingCards = await ctx.prisma.card.findMany({
-        where: { deckId: input.deckId },
-        select: { id: true, front: true, back: true },
-      });
-      const existingByFront = new Map(
-        existingCards.map((c) => [c.front.toLowerCase(), c]),
-      );
-
-      const toCreate: { front: string; back: string }[] = [];
-      let updatedCount = 0;
-
-      for (const card of uniqueCsvCards) {
-        const existing = existingByFront.get(card.front.toLowerCase());
-        if (!existing) {
-          toCreate.push(card);
-        } else if (existing.back.toLowerCase() !== card.back.toLowerCase()) {
-          await ctx.prisma.card.update({
-            where: { id: existing.id },
-            data: { back: card.back },
+        if (!existing || existing.deckId !== input.deckId) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Card does not belong to this deck',
           });
-          updatedCount++;
         }
-        // else: exact match on front+back, skip
       }
 
-      if (toCreate.length > 0) {
+      // Create new cards
+      if (input.new.length > 0) {
         await ctx.prisma.card.createMany({
-          data: toCreate.map((card) => ({
+          data: input.new.map((card) => ({
             deckId: input.deckId,
             front: card.front,
             back: card.back,
@@ -201,6 +182,17 @@ export const cardRouter = router({
         });
       }
 
-      return { importedCount: toCreate.length, updatedCount };
+      // Update existing cards
+      for (const card of input.update) {
+        await ctx.prisma.card.update({
+          where: { id: card.cardId },
+          data: { back: card.back },
+        });
+      }
+
+      return {
+        createdCount: input.new.length,
+        updatedCount: input.update.length,
+      };
     }),
 });

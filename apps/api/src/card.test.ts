@@ -510,19 +510,24 @@ describe('cardRouter', () => {
     });
   });
 
-  describe('importCsv', () => {
-    it('imports cards from valid CSV into a deck', async () => {
+  describe('importCards', () => {
+    it('creates new cards on the deck', async () => {
       const deck = await prisma.deck.create({
         data: { name: 'Import Deck', userId },
       });
 
       const caller = createCaller();
-      const result = await caller.card.importCsv({
+      const result = await caller.card.importCards({
         deckId: deck.id,
-        csvContent: 'front,back\nCapital of France,Paris\n2 + 2,4',
+        new: [
+          { front: 'Capital of France', back: 'Paris' },
+          { front: '2 + 2', back: '4' },
+        ],
+        update: [],
       });
 
-      expect(result.importedCount).toBe(2);
+      expect(result.createdCount).toBe(2);
+      expect(result.updatedCount).toBe(0);
 
       const cards = await prisma.card.findMany({
         where: { deckId: deck.id },
@@ -535,189 +540,192 @@ describe('cardRouter', () => {
       expect(cards[1].back).toBe('4');
     });
 
-    it('rejects CSV with invalid headers', async () => {
-      const deck = await prisma.deck.create({
-        data: { name: 'Import Deck', userId },
-      });
-
-      const caller = createCaller();
-      await expect(
-        caller.card.importCsv({
-          deckId: deck.id,
-          csvContent: 'question,answer\nWhat is 1+1,2',
-        }),
-      ).rejects.toThrow(/front.*back|header/i);
-    });
-
-    it('rejects CSV with rows missing fields', async () => {
-      const deck = await prisma.deck.create({
-        data: { name: 'Import Deck', userId },
-      });
-
-      const caller = createCaller();
-      await expect(
-        caller.card.importCsv({
-          deckId: deck.id,
-          csvContent: 'front,back\nOnly front,',
-        }),
-      ).rejects.toThrow(/row/i);
-    });
-
-    it('appends cards to a deck that already has cards', async () => {
-      const deck = await prisma.deck.create({
-        data: {
-          name: 'Existing Deck',
-          userId,
-          cards: { create: [{ front: 'Existing Q', back: 'Existing A' }] },
-        },
-      });
-
-      const caller = createCaller();
-      await caller.card.importCsv({
-        deckId: deck.id,
-        csvContent: 'front,back\nNew Q,New A',
-      });
-
-      const cards = await prisma.card.findMany({
-        where: { deckId: deck.id },
-      });
-      expect(cards).toHaveLength(2);
-    });
-
-    it('throws NOT_FOUND for deck owned by another user', async () => {
-      const otherDeck = await prisma.deck.create({
-        data: { name: 'Other Deck', userId: otherUserId },
-      });
-
-      const caller = createCaller();
-      await expect(
-        caller.card.importCsv({
-          deckId: otherDeck.id,
-          csvContent: 'front,back\nQ,A',
-        }),
-      ).rejects.toThrow(/not found/i);
-    });
-
-    it('throws NOT_FOUND for nonexistent deck', async () => {
-      const caller = createCaller();
-      await expect(
-        caller.card.importCsv({
-          deckId: 'nonexistent',
-          csvContent: 'front,back\nQ,A',
-        }),
-      ).rejects.toThrow(/not found/i);
-    });
-
-    it('dedupes identical rows within the CSV', async () => {
-      const deck = await prisma.deck.create({
-        data: { name: 'Import Deck', userId },
-      });
-
-      const caller = createCaller();
-      const result = await caller.card.importCsv({
-        deckId: deck.id,
-        csvContent: 'front,back\nQ1,A1\nQ1,A1\nQ2,A2',
-      });
-
-      expect(result.importedCount).toBe(2);
-      expect(result.updatedCount).toBe(0);
-
-      const cards = await prisma.card.findMany({
-        where: { deckId: deck.id },
-      });
-      expect(cards).toHaveLength(2);
-    });
-
-    it('keeps last answer when CSV has duplicate fronts with different backs', async () => {
-      const deck = await prisma.deck.create({
-        data: { name: 'Import Deck', userId },
-      });
-
-      const caller = createCaller();
-      const result = await caller.card.importCsv({
-        deckId: deck.id,
-        csvContent: 'front,back\nQ1,Wrong Answer\nQ1,Right Answer\nQ2,A2',
-      });
-
-      expect(result.importedCount).toBe(2);
-      expect(result.updatedCount).toBe(0);
-
-      const cards = await prisma.card.findMany({
-        where: { deckId: deck.id },
-        orderBy: { createdAt: 'asc' },
-      });
-      expect(cards).toHaveLength(2);
-      expect(cards.find((c) => c.front === 'Q1')?.back).toBe('Right Answer');
-    });
-
-    it('skips cards that fully match existing cards in the deck', async () => {
-      const deck = await prisma.deck.create({
-        data: {
-          name: 'Import Deck',
-          userId,
-          cards: { create: [{ front: 'Existing Q', back: 'Existing A' }] },
-        },
-      });
-
-      const caller = createCaller();
-      const result = await caller.card.importCsv({
-        deckId: deck.id,
-        csvContent: 'front,back\nExisting Q,Existing A\nNew Q,New A',
-      });
-
-      expect(result.importedCount).toBe(1);
-      expect(result.updatedCount).toBe(0);
-
-      const cards = await prisma.card.findMany({
-        where: { deckId: deck.id },
-      });
-      expect(cards).toHaveLength(2);
-    });
-
-    it('updates existing card back when CSV has same front with different answer', async () => {
+    it('updates existing cards back text', async () => {
       const deck = await prisma.deck.create({
         data: {
           name: 'Import Deck',
           userId,
           cards: { create: [{ front: 'Capital of France', back: 'Lyon' }] },
         },
+        include: { cards: true },
       });
 
       const caller = createCaller();
-      const result = await caller.card.importCsv({
+      const result = await caller.card.importCards({
         deckId: deck.id,
-        csvContent: 'front,back\nCapital of France,Paris\nNew Q,New A',
+        new: [],
+        update: [{ cardId: deck.cards[0].id, back: 'Paris' }],
       });
 
-      expect(result.importedCount).toBe(1);
+      expect(result.createdCount).toBe(0);
       expect(result.updatedCount).toBe(1);
 
       const cards = await prisma.card.findMany({
         where: { deckId: deck.id },
       });
-      expect(cards).toHaveLength(2);
-      expect(cards.find((c) => c.front === 'Capital of France')?.back).toBe(
-        'Paris',
-      );
+      expect(cards).toHaveLength(1);
+      expect(cards[0].back).toBe('Paris');
     });
 
-    it('dedupes case-insensitively against existing cards', async () => {
+    it('handles mixed new and update in one call', async () => {
       const deck = await prisma.deck.create({
         data: {
           name: 'Import Deck',
           userId,
-          cards: { create: [{ front: 'Hello', back: 'World' }] },
+          cards: { create: [{ front: 'Existing Q', back: 'Old A' }] },
         },
+        include: { cards: true },
       });
 
       const caller = createCaller();
-      const result = await caller.card.importCsv({
+      const result = await caller.card.importCards({
         deckId: deck.id,
-        csvContent: 'front,back\nhello,world\nNew Q,New A',
+        new: [{ front: 'New Q', back: 'New A' }],
+        update: [{ cardId: deck.cards[0].id, back: 'Updated A' }],
       });
 
-      expect(result.importedCount).toBe(1);
-      expect(result.updatedCount).toBe(0);
+      expect(result.createdCount).toBe(1);
+      expect(result.updatedCount).toBe(1);
+
+      const cards = await prisma.card.findMany({
+        where: { deckId: deck.id },
+        orderBy: { createdAt: 'asc' },
+      });
+      expect(cards).toHaveLength(2);
+      expect(cards[0].back).toBe('Updated A');
+      expect(cards[1].front).toBe('New Q');
+    });
+
+    it('rejects when deck not found', async () => {
+      const caller = createCaller();
+      await expect(
+        caller.card.importCards({
+          deckId: 'nonexistent',
+          new: [{ front: 'Q', back: 'A' }],
+          update: [],
+        }),
+      ).rejects.toThrow(/not found/i);
+    });
+
+    it('rejects when deck not owned by user', async () => {
+      const otherDeck = await prisma.deck.create({
+        data: { name: 'Other Deck', userId: otherUserId },
+      });
+
+      const caller = createCaller();
+      await expect(
+        caller.card.importCards({
+          deckId: otherDeck.id,
+          new: [{ front: 'Q', back: 'A' }],
+          update: [],
+        }),
+      ).rejects.toThrow(/not found/i);
+    });
+
+    it('rejects update for a card not belonging to the deck', async () => {
+      const deck = await prisma.deck.create({
+        data: { name: 'My Deck', userId },
+      });
+      const otherDeck = await prisma.deck.create({
+        data: {
+          name: 'Other Deck',
+          userId,
+          cards: { create: [{ front: 'Q', back: 'A' }] },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      await expect(
+        caller.card.importCards({
+          deckId: deck.id,
+          new: [],
+          update: [{ cardId: otherDeck.cards[0].id, back: 'Hacked' }],
+        }),
+      ).rejects.toThrow(/card.*does not belong|not found/i);
+    });
+
+    it('rejects empty front in new cards', async () => {
+      const deck = await prisma.deck.create({
+        data: { name: 'Import Deck', userId },
+      });
+
+      const caller = createCaller();
+      await expect(
+        caller.card.importCards({
+          deckId: deck.id,
+          new: [{ front: '', back: 'A' }],
+          update: [],
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('rejects empty back in new cards', async () => {
+      const deck = await prisma.deck.create({
+        data: { name: 'Import Deck', userId },
+      });
+
+      const caller = createCaller();
+      await expect(
+        caller.card.importCards({
+          deckId: deck.id,
+          new: [{ front: 'Q', back: '' }],
+          update: [],
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('rejects empty back in update cards', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Import Deck',
+          userId,
+          cards: { create: [{ front: 'Q', back: 'A' }] },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      await expect(
+        caller.card.importCards({
+          deckId: deck.id,
+          new: [],
+          update: [{ cardId: deck.cards[0].id, back: '' }],
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('returns correct createdCount and updatedCount', async () => {
+      const deck = await prisma.deck.create({
+        data: {
+          name: 'Import Deck',
+          userId,
+          cards: {
+            create: [
+              { front: 'Q1', back: 'Old A1' },
+              { front: 'Q2', back: 'Old A2' },
+            ],
+          },
+        },
+        include: { cards: true },
+      });
+
+      const caller = createCaller();
+      const result = await caller.card.importCards({
+        deckId: deck.id,
+        new: [
+          { front: 'Q3', back: 'A3' },
+          { front: 'Q4', back: 'A4' },
+          { front: 'Q5', back: 'A5' },
+        ],
+        update: [
+          { cardId: deck.cards[0].id, back: 'New A1' },
+          { cardId: deck.cards[1].id, back: 'New A2' },
+        ],
+      });
+
+      expect(result.createdCount).toBe(3);
+      expect(result.updatedCount).toBe(2);
     });
   });
 });
