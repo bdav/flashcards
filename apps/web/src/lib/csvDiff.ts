@@ -53,7 +53,7 @@ export function diffCsvRows(
 
     if (!existing) {
       newCards.push({ front: row.front, back: row.back });
-    } else if (existing.back.toLowerCase() !== row.back.toLowerCase()) {
+    } else if (existing.back !== row.back) {
       updateCards.push({
         cardId: existing.id,
         front: row.front,

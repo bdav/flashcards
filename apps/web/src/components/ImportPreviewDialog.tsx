@@ -94,7 +94,7 @@ export function ImportPreviewDialog({
               <div className="space-y-2">
                 {newCards.map((card, i) => (
                   <div
-                    key={i}
+                    key={card.front}
                     className="flex items-center gap-2"
                     data-testid="new-card-row"
                   >
@@ -137,7 +137,7 @@ export function ImportPreviewDialog({
               <div className="space-y-2">
                 {updateCards.map((card, i) => (
                   <div
-                    key={i}
+                    key={card.cardId}
                     className="flex items-center gap-2"
                     data-testid="update-card-row"
                   >

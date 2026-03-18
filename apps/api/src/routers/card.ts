@@ -159,40 +159,50 @@ export const cardRouter = router({
       }
 
       // Validate that all update cards belong to this deck
-      for (const card of input.update) {
-        const existing = await ctx.prisma.card.findUnique({
-          where: { id: card.cardId },
+      if (input.update.length > 0) {
+        const updateIds = input.update.map((c) => c.cardId);
+        const existingCards = await ctx.prisma.card.findMany({
+          where: { id: { in: updateIds } },
         });
-        if (!existing || existing.deckId !== input.deckId) {
-          throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: 'Card does not belong to this deck',
-          });
+        const existingByDeck = new Set(
+          existingCards
+            .filter((c) => c.deckId === input.deckId)
+            .map((c) => c.id),
+        );
+        for (const id of updateIds) {
+          if (!existingByDeck.has(id)) {
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Card does not belong to this deck',
+            });
+          }
         }
       }
 
-      // Create new cards
-      if (input.new.length > 0) {
-        await ctx.prisma.card.createMany({
-          data: input.new.map((card) => ({
-            deckId: input.deckId,
-            front: card.front,
-            back: card.back,
-          })),
-        });
-      }
+      return ctx.prisma.$transaction(async (tx) => {
+        // Create new cards
+        if (input.new.length > 0) {
+          await tx.card.createMany({
+            data: input.new.map((card) => ({
+              deckId: input.deckId,
+              front: card.front,
+              back: card.back,
+            })),
+          });
+        }
 
-      // Update existing cards
-      for (const card of input.update) {
-        await ctx.prisma.card.update({
-          where: { id: card.cardId },
-          data: { back: card.back },
-        });
-      }
+        // Update existing cards
+        for (const card of input.update) {
+          await tx.card.update({
+            where: { id: card.cardId },
+            data: { back: card.back },
+          });
+        }
 
-      return {
-        createdCount: input.new.length,
-        updatedCount: input.update.length,
-      };
+        return {
+          createdCount: input.new.length,
+          updatedCount: input.update.length,
+        };
+      });
     }),
 });
