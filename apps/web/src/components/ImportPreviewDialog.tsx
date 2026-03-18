@@ -3,6 +3,14 @@ import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -11,6 +19,9 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import type { NewCard, UpdateCard, SkippedRow } from '@/lib/csvDiff';
+
+const glassInputClassName =
+  'rounded-none border-0 border-b-2 border-white/40 bg-transparent text-white shadow-none focus-visible:ring-0 focus-visible:border-white/70 placeholder-white/40';
 
 interface ImportPreviewDialogProps {
   open: boolean;
@@ -73,12 +84,13 @@ export function ImportPreviewDialog({
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent
-        className="sm:max-w-2xl max-h-[80vh] flex flex-col"
+        className="sm:max-w-2xl max-h-[80vh] flex flex-col border border-white/20 bg-[oklch(0.25_0.08_230)] text-white backdrop-blur-md"
         showCloseButton={false}
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Import Preview</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-white">Import Preview</DialogTitle>
+          <DialogDescription className="text-white/70">
             Review the cards that will be imported. You can edit or remove rows
             before importing.
           </DialogDescription>
@@ -88,119 +100,168 @@ export function ImportPreviewDialog({
           {/* New Cards Section */}
           {newCards.length > 0 && (
             <section>
-              <h3 className="text-sm font-medium mb-2">
+              <h3 className="text-sm font-semibold mb-1">
                 New cards ({newCards.length})
               </h3>
-              <div className="space-y-2">
-                {newCards.map((card, i) => (
-                  <div
-                    key={card.front}
-                    className="flex items-center gap-2"
-                    data-testid="new-card-row"
-                  >
-                    <Input
-                      value={card.front}
-                      onChange={(e) =>
-                        updateNewCardField(i, 'front', e.target.value)
-                      }
-                      aria-label={`New card ${i + 1} front`}
-                      className="flex-1"
-                    />
-                    <Input
-                      value={card.back}
-                      onChange={(e) =>
-                        updateNewCardField(i, 'back', e.target.value)
-                      }
-                      aria-label={`New card ${i + 1} back`}
-                      className="flex-1"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeNewCard(i)}
-                      aria-label={`Remove new card ${i + 1}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Front</TableHead>
+                    <TableHead>Back</TableHead>
+                    <TableHead className="w-10" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {newCards.map((card, i) => (
+                    <TableRow key={i} data-testid="new-card-row">
+                      <TableCell className="py-2">
+                        <Input
+                          value={card.front}
+                          onChange={(e) =>
+                            updateNewCardField(i, 'front', e.target.value)
+                          }
+                          aria-label={`New card ${i + 1} front`}
+                          className={glassInputClassName}
+                        />
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <Input
+                          value={card.back}
+                          onChange={(e) =>
+                            updateNewCardField(i, 'back', e.target.value)
+                          }
+                          aria-label={`New card ${i + 1} back`}
+                          className={glassInputClassName}
+                        />
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-white/70 hover:text-white hover:bg-white/10"
+                          onClick={() => removeNewCard(i)}
+                          aria-label={`Remove new card ${i + 1}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </section>
           )}
 
           {/* Updating Section */}
           {updateCards.length > 0 && (
             <section>
-              <h3 className="text-sm font-medium mb-2">
+              <h3 className="text-sm font-semibold mb-1">
                 Updating ({updateCards.length})
               </h3>
-              <div className="space-y-2">
-                {updateCards.map((card, i) => (
-                  <div
-                    key={card.cardId}
-                    className="flex items-center gap-2"
-                    data-testid="update-card-row"
-                  >
-                    <span className="flex-1 text-sm text-muted-foreground truncate">
-                      {card.front}
-                    </span>
-                    <span className="flex-1 text-sm text-muted-foreground/60 line-through truncate">
-                      {card.oldBack}
-                    </span>
-                    <Input
-                      value={card.newBack}
-                      onChange={(e) => updateUpdateCardBack(i, e.target.value)}
-                      aria-label={`Update card ${i + 1} new back`}
-                      className="flex-1"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeUpdateCard(i)}
-                      aria-label={`Remove update card ${i + 1}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Question</TableHead>
+                    <TableHead>Old Answer</TableHead>
+                    <TableHead>New Answer</TableHead>
+                    <TableHead className="w-10" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {updateCards.map((card, i) => (
+                    <TableRow key={card.cardId} data-testid="update-card-row">
+                      <TableCell className="py-2 font-medium text-white/80 truncate max-w-[10rem]">
+                        {card.front}
+                      </TableCell>
+                      <TableCell className="py-2 text-white/60 line-through truncate max-w-[8rem]">
+                        {card.oldBack}
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <Input
+                          value={card.newBack}
+                          onChange={(e) =>
+                            updateUpdateCardBack(i, e.target.value)
+                          }
+                          aria-label={`Update card ${i + 1} new back`}
+                          className={glassInputClassName}
+                        />
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-white/70 hover:text-white hover:bg-white/10"
+                          onClick={() => removeUpdateCard(i)}
+                          aria-label={`Remove update card ${i + 1}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </section>
           )}
 
           {/* Skipped Section */}
           {skippedRows.length > 0 && (
             <section>
-              <h3 className="text-sm font-medium text-muted-foreground mb-2">
+              <h3 className="text-sm font-semibold text-white/70 mb-1">
                 Skipped ({skippedRows.length})
               </h3>
-              <div className="space-y-1">
-                {skippedRows.map((row, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-2 text-sm text-muted-foreground/60"
-                    data-testid="skipped-row"
-                  >
-                    <span className="flex-1 truncate">{row.front}</span>
-                    <span className="flex-1 truncate">{row.back}</span>
-                    <span className="flex-1 text-xs italic">{row.reason}</span>
-                  </div>
-                ))}
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Front</TableHead>
+                    <TableHead>Back</TableHead>
+                    <TableHead>Reason</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {skippedRows.map((row, i) => (
+                    <TableRow
+                      key={i}
+                      className="hover:bg-transparent"
+                      data-testid="skipped-row"
+                    >
+                      <TableCell className="py-2 text-white/60 truncate max-w-[10rem]">
+                        {row.front}
+                      </TableCell>
+                      <TableCell className="py-2 text-white/60 truncate max-w-[8rem]">
+                        {row.back}
+                      </TableCell>
+                      <TableCell className="py-2 text-white/70 text-xs italic">
+                        {row.reason}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </section>
           )}
 
           {!hasChanges && skippedRows.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-4">
+            <p className="text-sm text-white/70 text-center py-4">
               No cards to import.
             </p>
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isPending}>
+        <DialogFooter className="border-white/20 bg-white/5">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={isPending}
+            className="border-white/20 bg-white/10 text-white hover:bg-white/20"
+          >
             Cancel
           </Button>
-          <Button onClick={handleImport} disabled={!hasChanges || isPending}>
+          <Button
+            onClick={handleImport}
+            disabled={!hasChanges || isPending}
+            className="bg-white/20 text-white hover:bg-white/30"
+          >
             {isPending ? 'Importing...' : 'Import'}
           </Button>
         </DialogFooter>
