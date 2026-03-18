@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { CornerDownLeft, Plus, X } from 'lucide-react';
+import { CornerDownLeft, Plus, Trash2, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { CenteredPage } from '@/components/CenteredPage';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { DeckListSkeleton } from '@/components/PageSkeleton';
 import { DeckCard } from '@/components/DeckCard';
 import { formatPercent } from '@/lib/format';
@@ -26,6 +27,16 @@ export default function DeckListPage() {
     },
     onError: () => {
       toast.error('Failed to create deck');
+    },
+  });
+
+  const deleteDeck = trpc.deck.delete.useMutation({
+    onSuccess: () => {
+      utils.deck.list.invalidate();
+      toast.success('Deck deleted');
+    },
+    onError: () => {
+      toast.error('Failed to delete deck');
     },
   });
 
@@ -144,7 +155,7 @@ export default function DeckListPage() {
                 layout="position"
                 transition={{ duration: 0.3, ease: 'easeInOut' }}
                 to={`/decks/${deck.id}`}
-                className="block transition-shadow hover:shadow-lg"
+                className="group/deck block transition-shadow hover:shadow-lg"
               >
                 <DeckCard stackCount={Math.min(deck.cardCount, 3)}>
                   <p className="text-center text-lg font-bold uppercase tracking-wide text-white">
@@ -164,6 +175,33 @@ export default function DeckListPage() {
                       {new Date(deck.lastStudied).toLocaleDateString()}
                     </p>
                   )}
+                  <div
+                    className="absolute bottom-2 right-2 opacity-0 transition-opacity group-hover/deck:opacity-100"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                  >
+                    <ConfirmDialog
+                      title="Delete deck"
+                      description={`Are you sure you want to delete "${deck.name}"? This cannot be undone.`}
+                      confirmLabel="Delete"
+                      onConfirm={() => deleteDeck.mutate({ id: deck.id })}
+                      trigger={
+                        <button
+                          type="button"
+                          aria-label={`Delete ${deck.name}`}
+                          className="rounded p-1 text-white/40 hover:text-destructive transition-colors"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      }
+                    />
+                  </div>
                 </DeckCard>
               </MotionLink>
             ))}

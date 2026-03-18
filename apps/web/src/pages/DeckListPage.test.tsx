@@ -14,6 +14,7 @@ vi.mock('@/lib/trpc', () => ({
     deck: {
       list: { useQuery: vi.fn() },
       create: { useMutation: vi.fn() },
+      delete: { useMutation: vi.fn() },
     },
   },
 }));
@@ -74,6 +75,12 @@ function setupMocks(
     mutateAsync: vi.fn(),
     isPending: false,
   } as unknown as ReturnType<typeof trpc.deck.create.useMutation>);
+
+  vi.mocked(trpc.deck.delete.useMutation).mockReturnValue({
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    isPending: false,
+  } as unknown as ReturnType<typeof trpc.deck.delete.useMutation>);
 }
 
 beforeEach(() => {
@@ -195,5 +202,38 @@ describe('DeckListPage', () => {
 
     expect(screen.getByText('World Capitals')).toBeInTheDocument();
     expect(screen.getByText('Math Facts')).toBeInTheDocument();
+  });
+
+  it('renders delete buttons for each deck', () => {
+    setupMocks();
+    renderDeckListPage();
+
+    expect(
+      screen.getByRole('button', { name: /delete world capitals/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /delete math facts/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('calls delete mutation after confirming delete', async () => {
+    setupMocks();
+    const mockMutate = vi.fn();
+    vi.mocked(trpc.deck.delete.useMutation).mockReturnValue({
+      mutate: mockMutate,
+      mutateAsync: vi.fn(),
+      isPending: false,
+    } as unknown as ReturnType<typeof trpc.deck.delete.useMutation>);
+
+    const user = userEvent.setup();
+    renderDeckListPage();
+
+    await user.click(
+      screen.getByRole('button', { name: /delete world capitals/i }),
+    );
+    // The confirm button in the AlertDialog — use exact name to avoid matching triggers
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+
+    expect(mockMutate).toHaveBeenCalledWith({ id: 'deck-1' });
   });
 });
