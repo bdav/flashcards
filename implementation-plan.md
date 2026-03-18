@@ -358,7 +358,7 @@ Capital of France,Paris
 
 ### Later Nice-to-Haves
 
-- ~~import preview before commit~~ → PR 19a/19b
+- ~~import preview before commit~~ → PR 19
 - alternate headers
 - multiline support
 - duplicate detection
@@ -1331,83 +1331,89 @@ existing Cards tab; deck edit/delete is accessible from the deck view.
 
 ---
 
-### PR 19a: Import Preview — Backend
+### PR 19: Import Preview
 
-**Scope:** Lenient CSV parsing and a `previewImport` query that categorizes rows before
-committing, so the frontend can show a preview dialog.
+**Scope:** Frontend-driven CSV preview with a simplified backend mutation. CSV parsing,
+validation, deduplication, and diff logic all move to the frontend — which already has
+the deck's cards via `card.listByDeck`. The backend receives pre-categorized structured
+data instead of raw CSV.
+
+#### Backend Changes
+
+Replace `card.importCsv` (accepts CSV string) with `card.importCards`:
+
+```text
+input: {
+  deckId: string,
+  new: { front: string, back: string }[],
+  update: { cardId: string, back: string }[]
+}
+returns: { createdCount: number, updatedCount: number }
+```
+
+The backend just validates deck ownership, validates each updated card belongs to the
+deck, runs `createMany` for new cards and individual updates for changed cards.
 
 **TDD Sequence — write tests first for:**
 
-1. lenient CSV parsing returns valid cards and error rows separately
-2. lenient parsing collects rows missing front with reason "Missing front"
-3. lenient parsing collects rows missing back with reason "Missing back"
-4. lenient parsing still rejects invalid headers entirely
-5. lenient parsing still trims whitespace and skips blank rows
-6. `previewImport` returns new cards in `importing`
-7. `previewImport` returns exact duplicates (front+back match) in `notImporting` with reason "Duplicate"
-8. `previewImport` returns cards with updated backs in `importing` (not as duplicates)
-9. `previewImport` returns malformed CSV rows in `notImporting` with reason
-10. `previewImport` dedupes within the CSV (last occurrence wins)
-11. `previewImport` rejects wrong headers with BAD_REQUEST
-12. `previewImport` enforces deck ownership
+1. `importCards` creates new cards on the deck
+2. `importCards` updates existing cards' back text
+3. `importCards` handles mixed new + update in one call
+4. `importCards` rejects when deck not found / not owned
+5. `importCards` rejects update for a card not belonging to the deck
+6. `importCards` rejects empty front or back in new cards
+7. `importCards` rejects empty back in update cards
+8. `importCards` returns correct createdCount and updatedCount
+9. existing `importCsv` tests are migrated to `importCards`
 
-**Tasks:**
-
-- add `parseCsvLenient` to `services/csvParser.ts` — reuses existing `parseLines()` helper,
-  returns `{ ok: true, cards: [...], errors: [{front?, back?, reason}] }` or
-  `{ ok: false, error: string }` for header failures
-- add `card.previewImport` query to `routers/card.ts` — parses CSV leniently, diffs valid
-  rows against existing deck cards (case-insensitive on front, same logic as `importCsv`),
-  returns `{ importing: [{front, back}], notImporting: [{front?, back?, reason}] }`
-
-**Definition of Done:**
-
-- all lenient CSV parser unit tests pass
-- all `previewImport` integration tests pass
-- existing `parseCsv` and `importCsv` tests still pass (no regressions)
-
----
-
-### PR 19b: Import Preview — Frontend
-
-**Scope:** After selecting a CSV file, show a preview dialog before importing. Users can
-review, edit, and remove rows before committing.
-
-**Tasks:**
+#### Frontend Changes
 
 - install shadcn Dialog component (`npx shadcn@latest add dialog`)
+- add client-side CSV parser utility (`lib/csvParser.ts`):
+  - validates `front,back` header
+  - trims whitespace, skips blank rows
+  - returns valid rows and error rows (missing front/back) separately
+  - dedupes within CSV (last occurrence wins, case-insensitive on front)
+- add client-side diff utility (`lib/csvDiff.ts`):
+  - compares parsed CSV rows against existing cards from `listByDeck` query cache
+  - categorizes into: **new** (no front match), **update** (front match, different back),
+    **duplicate** (exact front+back match), **error** (from parser)
 - create `ImportPreviewDialog` component using shadcn Dialog + Table:
   - sticky header with title "Import Preview"
-  - **"Importing" table**: columns Front (editable Input), Back (editable Input), Remove (Trash2 icon).
+  - **"New cards" section**: columns Front (editable Input), Back (editable Input), Remove (Trash2 icon).
     Row count in section heading. Local state copy of rows for editing/removal.
-  - **"Not importing" table** (conditional, only if non-empty): columns Front, Back, Reason.
-    Read-only, styled muted/dimmer.
+  - **"Updating" section** (conditional): columns Front (read-only), Old Back (read-only, muted),
+    New Back (editable Input), Remove. Shows which existing cards will have their back updated.
+  - **"Skipped" section** (conditional, only if non-empty): columns Front, Back, Reason.
+    Read-only, styled muted/dimmer. Covers exact duplicates and error rows.
   - sticky footer with "Cancel" (secondary) and "Import" (primary) buttons
   - scrollable content pane between sticky header and footer
-  - Import button disabled when no importing rows remain or when import is pending
+  - Import button disabled when no new/update rows remain or when import is pending
 - update `DeckCardsPage` CSV import flow:
-  - after file select, call `previewImport` instead of `importCsv`
-  - on preview success, open `ImportPreviewDialog` with results
-  - on dialog confirm, reconstruct CSV from edited rows and call existing `importCsv`
+  - after file select, parse CSV client-side and diff against cached cards
+  - open `ImportPreviewDialog` with categorized results (no network call)
+  - on dialog confirm, send `{ new, update }` to `card.importCards`
   - on dialog cancel, close dialog and reset state
-- CSV reconstruction helper: properly escapes commas and quotes in field values
 
-**Tests:**
+**Tests (frontend):**
 
-- file upload triggers `previewImport` (not `importCsv` directly)
-- preview dialog opens showing importing and not-importing tables
-- Import button in dialog calls `importCsv` with curated CSV content
+- CSV parser: valid CSV, wrong headers, missing fields, blank rows, whitespace trimming, deduplication
+- CSV diff: new cards, updates, exact duplicates, error rows
+- file upload opens preview dialog (no network call for preview)
+- preview dialog shows new, updating, and skipped sections
+- user can edit and remove rows in the preview
+- Import button calls `importCards` with structured `{ new, update }` payload
 - Cancel closes dialog without importing
 
 **Definition of Done:**
 
-- user can preview CSV contents before importing
-- can edit front/back values in the preview
-- can remove rows from the preview
-- malformed rows and duplicates are shown separately with reasons
-- confirm imports only the curated rows
-- cancel discards without side effects
-- all frontend tests pass
+- `card.importCsv` is replaced by `card.importCards`
+- CSV parsing and diff logic lives on the frontend
+- user can preview CSV contents before importing with instant feedback (no round-trip)
+- can edit front/back values and remove rows in the preview
+- new cards are created and changed-back cards are updated in one call
+- exact duplicates and error rows are shown separately with reasons
+- all backend and frontend tests pass
 
 ---
 
